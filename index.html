@@ -1,0 +1,623 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="VRVS">
+  <meta name="theme-color" content="#111318">
+  <link rel="manifest" href="./public/manifest.json">
+  <link rel="apple-touch-icon" href="./public/icons/icon-180.png">
+  <title>VRVS</title>
+  <style>
+    /* ── Variáveis ── */
+    :root {
+      --bg:          #111318;
+      --surface-1:   #1c1f26;
+      --surface-2:   #252830;
+      --border:      #2e3138;
+      --text-1:      #e4e6ea;
+      --text-2:      #8d929e;
+      --text-3:      #5c6170;
+      --accent:      #0d9488;
+      --accent-dim:  rgba(13, 148, 136, 0.12);
+      --tab-h:       56px;
+      --tab-total:   calc(var(--tab-h) + env(safe-area-inset-bottom));
+    }
+
+    /* ── Reset mínimo ── */
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text-1);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      font-size: 16px;
+      line-height: 1.5;
+      font-weight: 400;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ── Telas ── */
+    .screen {
+      display: none;
+      position: fixed;
+      inset: 0;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      padding-top: calc(env(safe-area-inset-top) + 20px);
+      padding-bottom: calc(var(--tab-total) + 52px + 32px);
+      padding-left: 16px;
+      padding-right: 16px;
+    }
+
+    .screen.active {
+      display: block;
+    }
+
+    /* ── Cabeçalho de tela ── */
+    .screen-header {
+      margin-bottom: 24px;
+    }
+
+    .screen-date {
+      font-size: 13px;
+      font-weight: 400;
+      color: var(--text-3);
+      margin-bottom: 4px;
+    }
+
+    .screen-title {
+      font-size: 24px;
+      font-weight: 500;
+      color: var(--text-1);
+    }
+
+    /* ── Blocos de conteúdo ── */
+    .block {
+      background: var(--surface-1);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 12px;
+    }
+
+    .block-label {
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--text-3);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 14px;
+    }
+
+    /* ── Pra agora ── */
+    .pra-agora-action {
+      font-size: 20px;
+      font-weight: 500;
+      color: var(--text-1);
+      margin-bottom: 6px;
+    }
+
+    .pra-agora-total {
+      font-size: 14px;
+      color: var(--text-2);
+      margin-bottom: 20px;
+    }
+
+    .pra-agora-tag {
+      display: inline-block;
+      font-size: 11px;
+      color: var(--text-3);
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 3px 8px;
+      margin-bottom: 20px;
+    }
+
+    /* ── Card "Pra agora" clicável ── */
+    .block-pra-agora {
+      cursor: pointer;
+      touch-action: manipulation;
+      outline: none;
+      text-align: left;
+      width: 100%;
+      font-family: inherit;
+      background: var(--surface-1);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 12px;
+      display: block;
+      color: inherit;
+    }
+
+    .block-pra-agora-header {
+      display: flex;
+      align-items: center;
+      margin-bottom: 14px;
+    }
+
+    .block-pra-agora-header .block-label {
+      margin-bottom: 0;
+      flex: 1;
+    }
+
+    .block-pra-agora-chevron {
+      font-size: 18px;
+      color: var(--text-3);
+      line-height: 1;
+    }
+
+    /* ── Estado vazio ── */
+    .empty {
+      text-align: center;
+      padding: 36px 16px;
+    }
+
+    .empty-title {
+      font-size: 17px;
+      font-weight: 500;
+      color: var(--text-2);
+      margin-bottom: 8px;
+    }
+
+    .empty-sub {
+      font-size: 14px;
+      color: var(--text-3);
+      margin-bottom: 24px;
+    }
+
+    .btn-outline {
+      display: inline-block;
+      background: transparent;
+      color: var(--accent);
+      font-size: 15px;
+      font-weight: 500;
+      font-family: inherit;
+      padding: 11px 22px;
+      border-radius: 8px;
+      border: 1px solid var(--accent);
+      cursor: pointer;
+      touch-action: manipulation;
+      min-height: 44px;
+    }
+
+    /* ── Estado bloco ── */
+    .estado-text {
+      font-size: 14px;
+      color: var(--text-3);
+    }
+
+    /* ── Lista (tela Mais) ── */
+    .list-section {
+      margin-bottom: 28px;
+    }
+
+    .list-section-label {
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--text-3);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      padding: 0 4px;
+      margin-bottom: 8px;
+    }
+
+    .list-card {
+      background: var(--surface-1);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    .list-item {
+      display: flex;
+      align-items: center;
+      width: 100%;
+      min-height: 52px;
+      padding: 0 16px;
+      font-size: 16px;
+      font-weight: 400;
+      font-family: inherit;
+      color: var(--text-1);
+      background: none;
+      border: none;
+      border-bottom: 1px solid var(--border);
+      cursor: pointer;
+      touch-action: manipulation;
+      text-align: left;
+    }
+
+    .list-item:last-child {
+      border-bottom: none;
+    }
+
+    .list-item-chevron {
+      margin-left: auto;
+      color: var(--text-3);
+      font-size: 16px;
+      line-height: 1;
+    }
+
+    .app-version {
+      font-size: 13px;
+      color: var(--text-3);
+      text-align: center;
+      padding: 8px 0 4px;
+    }
+
+    /* ── Tab bar ── */
+    .tab-bar {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: var(--tab-total);
+      background: var(--surface-1);
+      border-top: 1px solid var(--border);
+      display: flex;
+      align-items: flex-start;
+      padding-bottom: env(safe-area-inset-bottom);
+      z-index: 100;
+    }
+
+    .tab-btn {
+      flex: 1;
+      height: var(--tab-h);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      background: none;
+      border: none;
+      cursor: pointer;
+      touch-action: manipulation;
+      color: var(--text-3);
+      font-family: inherit;
+      font-size: 11px;
+      font-weight: 400;
+    }
+
+    .tab-btn.active {
+      color: var(--accent);
+    }
+
+    .tab-icon {
+      width: 24px;
+      height: 24px;
+      flex-shrink: 0;
+    }
+
+    /* ── Capture FAB ── */
+    .capture-fab {
+      position: fixed;
+      right: 20px;
+      bottom: calc(var(--tab-total) + 16px);
+      width: 52px;
+      height: 52px;
+      border-radius: 50%;
+      background: var(--accent);
+      color: #fff;
+      font-size: 26px;
+      font-weight: 400;
+      font-family: inherit;
+      border: none;
+      cursor: pointer;
+      touch-action: manipulation;
+      z-index: 101;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      line-height: 1;
+    }
+
+    /* ── Mensagem de feedback do Capture ── */
+    .capture-msg {
+      position: fixed;
+      right: 16px;
+      bottom: calc(var(--tab-total) + 84px);
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-size: 13px;
+      color: var(--text-2);
+      z-index: 102;
+      opacity: 0;
+      pointer-events: none;
+      max-width: 230px;
+      text-align: right;
+      transition: opacity 0.2s ease;
+    }
+
+    .capture-msg.visible {
+      opacity: 1;
+    }
+
+    /* ── Feedback de botão neutro ── */
+    .btn-msg {
+      font-size: 13px;
+      color: var(--text-3);
+      margin-top: 12px;
+      min-height: 18px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ══ TELA HOJE ══ -->
+  <section id="screen-hoje" class="screen active" role="main" aria-label="Hoje">
+
+    <header class="screen-header">
+      <p class="screen-date" id="hoje-date">hoje</p>
+      <h1 class="screen-title">Hoje</h1>
+    </header>
+
+    <!-- Pra agora — card inteiro clicável -->
+    <button class="block-pra-agora" id="btn-pra-agora" aria-label="Revisar agora">
+      <div class="block-pra-agora-header">
+        <p class="block-label">Pra agora</p>
+        <span class="block-pra-agora-chevron" aria-hidden="true">›</span>
+      </div>
+      <p class="pra-agora-action">Revisar 10 agora</p>
+      <p class="pra-agora-total">80 pendentes no total</p>
+      <span class="pra-agora-tag">exemplo visual — sem dados reais</span>
+      <p class="btn-msg" id="revisar-msg" aria-live="polite"></p>
+    </button>
+
+    <!-- Estado -->
+    <div class="block">
+      <p class="block-label">Estado</p>
+      <p class="estado-text">Dados disponíveis após configuração de perfil.</p>
+    </div>
+
+  </section>
+
+  <!-- ══ TELA TEMAS ══ -->
+  <section id="screen-temas" class="screen" role="main" aria-label="Temas">
+
+    <header class="screen-header">
+      <h1 class="screen-title">Temas</h1>
+    </header>
+
+    <div class="block">
+      <div class="empty">
+        <p class="empty-title">Nenhum tema criado.</p>
+        <p class="empty-sub">Crie um tema pra começar a organizar seu estudo.</p>
+        <button class="btn-outline" id="btn-criar-tema" touch-action="manipulation">
+          Criar tema
+        </button>
+        <p class="btn-msg" id="criar-tema-msg" aria-live="polite"></p>
+      </div>
+    </div>
+
+  </section>
+
+  <!-- ══ TELA MAIS ══ -->
+  <section id="screen-mais" class="screen" role="main" aria-label="Mais">
+
+    <header class="screen-header">
+      <h1 class="screen-title">Mais</h1>
+    </header>
+
+    <!-- Perfil -->
+    <div class="list-section">
+      <p class="list-section-label">Perfil</p>
+      <div class="list-card">
+        <button class="list-item" touch-action="manipulation">
+          Perfil ativo
+          <span class="list-item-chevron">›</span>
+        </button>
+        <button class="list-item" touch-action="manipulation">
+          Sessões
+          <span class="list-item-chevron">›</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Conteúdo -->
+    <div class="list-section">
+      <p class="list-section-label">Conteúdo</p>
+      <div class="list-card">
+        <button class="list-item" touch-action="manipulation">
+          Capturas pendentes
+          <span class="list-item-chevron">›</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Sistema -->
+    <div class="list-section">
+      <p class="list-section-label">Sistema</p>
+      <div class="list-card">
+        <button class="list-item" touch-action="manipulation">
+          Backup
+          <span class="list-item-chevron">›</span>
+        </button>
+        <button class="list-item" touch-action="manipulation">
+          Restore
+          <span class="list-item-chevron">›</span>
+        </button>
+        <button class="list-item" touch-action="manipulation">
+          Configurações
+          <span class="list-item-chevron">›</span>
+        </button>
+        <button class="list-item" touch-action="manipulation">
+          Sobre
+          <span class="list-item-chevron">›</span>
+        </button>
+      </div>
+    </div>
+
+    <p class="app-version">VRVS Nova — Etapa 1 (shell visual)</p>
+
+  </section>
+
+  <!-- ══ CAPTURE FAB ══ -->
+  <button class="capture-fab" id="btn-capture" aria-label="Capture">+</button>
+  <div class="capture-msg" id="capture-msg" role="status" aria-live="polite">
+    Capture disponível em etapa futura.
+  </div>
+
+  <!-- ══ TAB BAR ══ -->
+  <nav class="tab-bar" role="tablist" aria-label="Navegação principal">
+
+    <button class="tab-btn active" role="tab" aria-selected="true"
+            aria-controls="screen-hoje" data-tab="hoje" id="tab-hoje">
+      <!-- Ícone Hoje: calendário -->
+      <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+           stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"
+           aria-hidden="true">
+        <rect x="3" y="4" width="18" height="17" rx="2"/>
+        <line x1="3" y1="9" x2="21" y2="9"/>
+        <line x1="8" y1="2" x2="8" y2="6"/>
+        <line x1="16" y1="2" x2="16" y2="6"/>
+        <circle cx="8" cy="14" r="1" fill="currentColor" stroke="none"/>
+      </svg>
+      Hoje
+    </button>
+
+    <button class="tab-btn" role="tab" aria-selected="false"
+            aria-controls="screen-temas" data-tab="temas" id="tab-temas">
+      <!-- Ícone Temas: lista com pontos -->
+      <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+           stroke-width="1.6" stroke-linecap="round" aria-hidden="true">
+        <line x1="9" y1="6"  x2="20" y2="6"/>
+        <line x1="9" y1="12" x2="20" y2="12"/>
+        <line x1="9" y1="18" x2="20" y2="18"/>
+        <circle cx="4" cy="6"  r="1.5" fill="currentColor" stroke="none"/>
+        <circle cx="4" cy="12" r="1.5" fill="currentColor" stroke="none"/>
+        <circle cx="4" cy="18" r="1.5" fill="currentColor" stroke="none"/>
+      </svg>
+      Temas
+    </button>
+
+    <button class="tab-btn" role="tab" aria-selected="false"
+            aria-controls="screen-mais" data-tab="mais" id="tab-mais">
+      <!-- Ícone Mais: três pontos horizontais -->
+      <svg class="tab-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+        <circle cx="5"  cy="12" r="2"/>
+        <circle cx="12" cy="12" r="2"/>
+        <circle cx="19" cy="12" r="2"/>
+      </svg>
+      Mais
+    </button>
+
+  </nav>
+
+  <script>
+    // ── Navegação por abas ──
+    const tabs    = document.querySelectorAll('.tab-btn');
+    const screens = document.querySelectorAll('.screen');
+
+    function activateTab(targetId) {
+      tabs.forEach(btn => {
+        const isActive = btn.dataset.tab === targetId;
+        btn.classList.toggle('active', isActive);
+        btn.setAttribute('aria-selected', isActive ? 'true' : 'false');
+      });
+      screens.forEach(s => {
+        s.classList.toggle('active', s.id === 'screen-' + targetId);
+      });
+    }
+
+    tabs.forEach(btn => {
+      btn.addEventListener('click', () => activateTab(btn.dataset.tab));
+      btn.addEventListener('touchend', e => {
+        e.preventDefault();
+        activateTab(btn.dataset.tab);
+      }, { passive: false });
+    });
+
+    // ── Botão Capture ──
+    const captureBtn = document.getElementById('btn-capture');
+    const captureMsg = document.getElementById('capture-msg');
+    let captureTimer;
+
+    function showCaptureMsg() {
+      captureMsg.classList.add('visible');
+      clearTimeout(captureTimer);
+      captureTimer = setTimeout(() => captureMsg.classList.remove('visible'), 2800);
+    }
+
+    captureBtn.addEventListener('click', showCaptureMsg);
+    captureBtn.addEventListener('touchend', e => {
+      e.preventDefault();
+      showCaptureMsg();
+    }, { passive: false });
+
+    // ── Card "Pra agora" clicável (placeholder) ──
+    const btnPraAgora = document.getElementById('btn-pra-agora');
+    const revisarMsg  = document.getElementById('revisar-msg');
+    let revisarTimer;
+
+    function showRevisarMsg() {
+      revisarMsg.textContent = 'Revisão disponível em etapa futura.';
+      clearTimeout(revisarTimer);
+      revisarTimer = setTimeout(() => { revisarMsg.textContent = ''; }, 3000);
+    }
+
+    btnPraAgora.addEventListener('click', showRevisarMsg);
+    btnPraAgora.addEventListener('touchend', e => {
+      e.preventDefault();
+      showRevisarMsg();
+    }, { passive: false });
+
+    // ── Botão placeholder: Criar tema ──
+    const btnCriarTema  = document.getElementById('btn-criar-tema');
+    const criarTemaMsg  = document.getElementById('criar-tema-msg');
+    let criarTemaTimer;
+
+    function showCriarTemaMsg() {
+      criarTemaMsg.textContent = 'Criação de temas disponível em etapa futura.';
+      clearTimeout(criarTemaTimer);
+      criarTemaTimer = setTimeout(() => { criarTemaMsg.textContent = ''; }, 3000);
+    }
+
+    btnCriarTema.addEventListener('click', showCriarTemaMsg);
+    btnCriarTema.addEventListener('touchend', e => {
+      e.preventDefault();
+      showCriarTemaMsg();
+    }, { passive: false });
+
+    // ── Itens da tela Mais (sem função real) ──
+    document.querySelectorAll('#screen-mais .list-item').forEach(btn => {
+      btn.addEventListener('touchend', e => { e.preventDefault(); }, { passive: false });
+    });
+
+    // ── Data de hoje ──
+    try {
+      const hoje = new Date();
+      const opts = { weekday: 'long', day: 'numeric', month: 'long' };
+      document.getElementById('hoje-date').textContent =
+        hoje.toLocaleDateString('pt-BR', opts);
+    } catch (_) {}
+
+    // ── Registro do Service Worker ──
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./public/sw.js').catch(() => {
+          // Escopo do SW limitado a /public/ quando servido localmente.
+          // Para cobertura total, mover sw.js para a raiz ou configurar
+          // o header Service-Worker-Allowed no servidor.
+        });
+      });
+    }
+  </script>
+</body>
+</html>

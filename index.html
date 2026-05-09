@@ -383,7 +383,7 @@
     <!-- Estado -->
     <div class="block">
       <p class="block-label">Estado</p>
-      <p class="estado-text">Dados disponíveis após configuração de perfil.</p>
+      <p class="estado-text" id="estado-text">Inicializando banco...</p>
     </div>
 
   </section>
@@ -618,6 +618,29 @@
         });
       });
     }
+  </script>
+
+  <!-- Etapa 2: boot IndexedDB -->
+  <script type="module">
+    import { boot } from './src/db/boot.js';
+
+    boot()
+      .then(result => {
+        const el = document.getElementById('estado-text');
+        if (!el) return;
+        if (result.ok) {
+          el.textContent = result.firstRun
+            ? `Banco inicializado. Perfil "${result.profileName}" criado.`
+            : `Perfil ativo: ${result.profileName}.`;
+        } else {
+          el.textContent =
+            'IndexedDB indisponível. Abra no Safari normal (não modo privado).';
+        }
+      })
+      .catch(() => {
+        const el = document.getElementById('estado-text');
+        if (el) el.textContent = 'Erro ao inicializar banco. Tente recarregar.';
+      });
   </script>
 </body>
 </html>

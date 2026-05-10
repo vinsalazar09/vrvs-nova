@@ -611,11 +611,7 @@
     // ── Registro do Service Worker ──
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./public/sw.js').catch(() => {
-          // Escopo do SW limitado a /public/ quando servido localmente.
-          // Para cobertura total, mover sw.js para a raiz ou configurar
-          // o header Service-Worker-Allowed no servidor.
-        });
+        navigator.serviceWorker.register('./sw.js').catch(() => {});
       });
     }
   </script>

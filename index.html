@@ -282,6 +282,60 @@
       color: var(--text-2);
     }
 
+    /* ── Detalhe de Tema ── */
+    .detalhe-titulo {
+      font-size: 22px;
+      font-weight: 500;
+      color: var(--text-1);
+      margin-bottom: 20px;
+    }
+    .detalhe-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      padding: 12px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .detalhe-row:last-child {
+      border-bottom: none;
+    }
+    .detalhe-label {
+      font-size: 14px;
+      color: var(--text-3);
+    }
+    .detalhe-valor {
+      font-size: 14px;
+      color: var(--text-1);
+      text-align: right;
+    }
+    .detalhe-notes {
+      font-size: 14px;
+      color: var(--text-2);
+      line-height: 1.6;
+      padding-top: 8px;
+    }
+    .detalhe-placeholder {
+      font-size: 13px;
+      color: var(--text-3);
+      padding-top: 8px;
+    }
+    .btn-voltar {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      background: none;
+      border: none;
+      color: var(--accent);
+      font-size: 16px;
+      font-family: inherit;
+      font-weight: 400;
+      cursor: pointer;
+      touch-action: manipulation;
+      padding: 0;
+      margin-bottom: 20px;
+      min-height: 44px;
+    }
+
     /* ── Estado bloco ── */
     .estado-text {
       font-size: 14px;
@@ -526,6 +580,40 @@
       </div>
     </div>
 
+    <!-- Detalhe de Tema (oculto por padrão) -->
+    <div id="temas-detalhe-wrap" hidden>
+      <button class="btn-voltar" id="btn-voltar-tema"
+              touch-action="manipulation">‹ Temas</button>
+
+      <p class="detalhe-titulo" id="detalhe-nome"></p>
+
+      <div class="block">
+        <div class="detalhe-row">
+          <span class="detalhe-label">Status</span>
+          <span class="detalhe-valor" id="detalhe-status"></span>
+        </div>
+        <div class="detalhe-row">
+          <span class="detalhe-label">Área</span>
+          <span class="detalhe-valor" id="detalhe-area"></span>
+        </div>
+      </div>
+
+      <div class="block">
+        <p class="block-label">Notas</p>
+        <p class="detalhe-notes" id="detalhe-notes"></p>
+      </div>
+
+      <div class="block">
+        <p class="block-label">Cards</p>
+        <p class="detalhe-placeholder">Cards entram em etapa futura.</p>
+      </div>
+
+      <div class="block">
+        <p class="block-label">Sessões</p>
+        <p class="detalhe-placeholder">Sessões entram em etapa futura.</p>
+      </div>
+    </div>
+
   </section>
 
   <!-- ══ TELA MAIS ══ -->
@@ -726,7 +814,7 @@
   <!-- Etapa 4: boot + Temas -->
   <script type="module">
     import { boot }                  from './src/db/boot.js';
-    import { listTemas, createTema } from './src/domain/tema/temaService.js';
+    import { listTemas, createTema, getTema, getArea } from './src/domain/tema/temaService.js';
 
     const STATUS_LABEL = {
       not_started: 'Não iniciado',
@@ -735,21 +823,59 @@
       mastered:    'Dominado',
     };
 
+    async function abrirDetalhe(profileId, temaId) {
+      const listWrap    = document.getElementById('temas-list-wrap');
+      const emptyWrap   = document.getElementById('temas-empty-wrap');
+      const detalheWrap = document.getElementById('temas-detalhe-wrap');
+
+      listWrap.hidden    = true;
+      emptyWrap.hidden   = true;
+      detalheWrap.hidden = false;
+
+      // Placeholder enquanto carrega
+      document.getElementById('detalhe-nome').textContent   = '…';
+      document.getElementById('detalhe-status').textContent = '…';
+      document.getElementById('detalhe-area').textContent   = '…';
+      document.getElementById('detalhe-notes').textContent  = '…';
+
+      try {
+        const tema = await getTema(profileId, temaId);
+        if (!tema) {
+          document.getElementById('detalhe-nome').textContent = 'Tema não encontrado.';
+          return;
+        }
+        const area = await getArea(profileId, tema.areaId);
+
+        document.getElementById('detalhe-nome').textContent   = tema.name;
+        document.getElementById('detalhe-status').textContent = STATUS_LABEL[tema.status] ?? tema.status;
+        document.getElementById('detalhe-area').textContent   = area?.name ?? '—';
+        document.getElementById('detalhe-notes').textContent  = tema.notes?.trim() || 'Sem notas.';
+      } catch (_) {
+        document.getElementById('detalhe-nome').textContent = 'Erro ao carregar tema.';
+      }
+    }
+
     async function renderTemas(profileId) {
-      const listWrap  = document.getElementById('temas-list-wrap');
-      const emptyWrap = document.getElementById('temas-empty-wrap');
-      const listEl    = document.getElementById('temas-list');
+      const listWrap    = document.getElementById('temas-list-wrap');
+      const emptyWrap   = document.getElementById('temas-empty-wrap');
+      const detalheWrap = document.getElementById('temas-detalhe-wrap');
+      const listEl      = document.getElementById('temas-list');
       try {
         const temas = await listTemas(profileId);
         if (temas.length === 0) {
-          listWrap.hidden  = true;
-          emptyWrap.hidden = false;
+          listWrap.hidden    = true;
+          detalheWrap.hidden = true;
+          emptyWrap.hidden   = false;
         } else {
-          emptyWrap.hidden = true;
-          listEl.innerHTML = '';
+          emptyWrap.hidden   = true;
+          detalheWrap.hidden = true;
+          listEl.innerHTML   = '';
           temas.forEach(t => {
-            const li   = document.createElement('li');
-            li.className = 'tema-item';
+            const li = document.createElement('li');
+            li.className      = 'tema-item';
+            li.dataset.temaId = t.temaId;
+            li.style.cursor   = 'pointer';
+            li.addEventListener('click', () => abrirDetalhe(profileId, t.temaId));
 
             const nome = document.createElement('span');
             nome.className   = 'tema-item-name';
@@ -843,6 +969,13 @@
 
         inputNome.addEventListener('keydown', e => {
           if (e.key === 'Enter') salvarTema();
+        });
+
+        // Botão voltar do detalhe
+        const btnVoltar = document.getElementById('btn-voltar-tema');
+        btnVoltar.addEventListener('click', async () => {
+          document.getElementById('temas-detalhe-wrap').hidden = true;
+          await renderTemas(profileId);
         });
       })
       .catch(() => {

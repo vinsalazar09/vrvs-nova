@@ -52,6 +52,28 @@ export async function listTemas(profileId) {
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
 
+// Busca um Tema pelo temaId, validando que pertence ao profileId ativo.
+// Retorna o objeto ou null se não existir ou não pertencer ao profile.
+export async function getTema(profileId, temaId) {
+  const db   = await openDB();
+  const tx   = db.transaction(['temas'], 'readonly');
+  const tema = await idbReq(tx.objectStore('temas').get(temaId));
+  await txDone(tx);
+  if (!tema || tema.profileId !== profileId) return null;
+  return tema;
+}
+
+// Busca uma Area pelo areaId, validando que pertence ao profileId ativo.
+// Retorna o objeto ou null se não existir ou não pertencer ao profile.
+export async function getArea(profileId, areaId) {
+  const db   = await openDB();
+  const tx   = db.transaction(['areas'], 'readonly');
+  const area = await idbReq(tx.objectStore('areas').get(areaId));
+  await txDone(tx);
+  if (!area || area.profileId !== profileId) return null;
+  return area;
+}
+
 // Cria um Tema novo vinculado à Area "Geral" do profile.
 // Lança 'nome_vazio' se nome vazio.
 // Lança 'area_geral_nao_encontrada' se Area não existir no banco.

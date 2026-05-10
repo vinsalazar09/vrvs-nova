@@ -95,7 +95,7 @@ export async function boot() {
       }
     }
 
-    return { ok: true, firstRun: false, profileName };
+    return { ok: true, firstRun: false, activeProfileId, profileName };
   }
 
   // ── Caso A: primeira execução — criar todos os registros iniciais ─────────
@@ -157,5 +157,5 @@ export async function boot() {
     return { ok: false, reason: 'init_failed', error: err.message };
   }
 
-  return { ok: true, firstRun: true, profileName: 'Principal' };
+  return { ok: true, firstRun: true, activeProfileId: profileId, profileName: 'Principal' };
 }

@@ -349,6 +349,18 @@
       opacity: 1;
     }
 
+    /* ── Valor à direita em item de lista (ex: Perfil ativo) ── */
+    .list-item-spacer {
+      flex: 1;
+    }
+
+    .list-item-value {
+      margin-right: 8px;
+      font-size: 14px;
+      color: var(--text-2);
+      white-space: nowrap;
+    }
+
     /* ── Feedback de botão neutro ── */
     .btn-msg {
       font-size: 13px;
@@ -421,6 +433,8 @@
       <div class="list-card">
         <button class="list-item" touch-action="manipulation">
           Perfil ativo
+          <span class="list-item-spacer"></span>
+          <span id="mais-perfil-nome" class="list-item-value"></span>
           <span class="list-item-chevron">›</span>
         </button>
         <button class="list-item" touch-action="manipulation">
@@ -622,20 +636,23 @@
 
     boot()
       .then(result => {
-        const el = document.getElementById('estado-text');
-        if (!el) return;
-        if (result.ok) {
-          el.textContent = result.firstRun
-            ? `Banco inicializado. Perfil "${result.profileName}" criado.`
-            : `Perfil ativo: ${result.profileName}.`;
-        } else {
-          el.textContent =
-            'IndexedDB indisponível. Abra no Safari normal (não modo privado).';
+        // Bloco Estado — status do banco
+        const estadoEl = document.getElementById('estado-text');
+        if (estadoEl) {
+          estadoEl.textContent = result.ok
+            ? 'Banco operacional.'
+            : 'IndexedDB indisponível. Abra no Safari normal (não modo privado).';
+        }
+
+        // Tela Mais — Profile ativo real
+        if (result.ok && result.profileName) {
+          const perfilEl = document.getElementById('mais-perfil-nome');
+          if (perfilEl) perfilEl.textContent = result.profileName;
         }
       })
       .catch(() => {
-        const el = document.getElementById('estado-text');
-        if (el) el.textContent = 'Erro ao inicializar banco. Tente recarregar.';
+        const estadoEl = document.getElementById('estado-text');
+        if (estadoEl) estadoEl.textContent = 'Erro ao inicializar banco. Tente recarregar.';
       });
   </script>
 </body>

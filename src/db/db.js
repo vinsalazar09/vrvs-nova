@@ -1,8 +1,8 @@
-// src/db/db.js — abre o banco e cria o schema v1
-// Schema versão 1: 11 stores da Fase 1, conforme SCHEMA_INDEXEDDB_v2.md
+// src/db/db.js — abre o banco e cria o schema v2
+// Schema versão 2: 12 stores (v1: 11 + cardAssets), conforme MIGRACAO_v1_v2_CARD_ASSETS.md
 
 const DB_NAME    = 'vrvs-nova';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
 export function openDB() {
   return new Promise((resolve, reject) => {
@@ -86,5 +86,17 @@ function createSchema(db, oldVersion) {
     captures.createIndex('by_profileId',         'profileId');
     captures.createIndex('by_profile_status',    ['profileId', 'status']);
     captures.createIndex('by_profile_createdAt', ['profileId', 'createdAt']);
+  }
+
+  // ── v2: adiciona cardAssets ──────────────────────────────────────────────
+  if (oldVersion < 2) {
+    if (!db.objectStoreNames.contains('cardAssets')) {
+      const assets = db.createObjectStore('cardAssets', { keyPath: 'assetId' });
+      assets.createIndex('by_profileId',         'profileId');
+      assets.createIndex('by_cardId',            'cardId');
+      assets.createIndex('by_profile_cardId',    ['profileId', 'cardId']);
+      assets.createIndex('by_profile_card_side', ['profileId', 'cardId', 'side']);
+      assets.createIndex('by_profile_archived',  ['profileId', 'archivedAt']);
+    }
   }
 }

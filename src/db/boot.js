@@ -3,7 +3,7 @@
 
 import { openDB } from './db.js';
 
-const APP_VERSION = '0.1.0-etapa2';
+const APP_VERSION = '0.1.0-etapa7b1';
 
 function genId(prefix) {
   return `${prefix}_${crypto.randomUUID()}`;
@@ -63,12 +63,13 @@ export async function boot() {
       const txWrite = db.transaction(['_meta'], 'readwrite');
       txWrite.objectStore('_meta').put({
         ...existingMeta,
-        lastOpenedAt: isoNow(),
-        appVersion:   APP_VERSION,
+        schemaVersion: 2,
+        lastOpenedAt:  isoNow(),
+        appVersion:    APP_VERSION,
       });
       await txDone(txWrite);
     } catch (_) {
-      // Não fatal — banco funciona, timestamp não atualizado
+      // Não fatal — banco funciona, metadata não atualizada
     }
 
     // B-2: ler appSettings — transação readonly própria
@@ -115,7 +116,7 @@ export async function boot() {
 
     tx.objectStore('_meta').put({
       id:                     'meta',
-      schemaVersion:          1,
+      schemaVersion:          2,
       installationId:         installId,
       createdAt:              ts,
       lastOpenedAt:           ts,

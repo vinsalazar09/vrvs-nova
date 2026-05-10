@@ -548,6 +548,130 @@
       margin-top: 12px;
       min-height: 18px;
     }
+
+    /* ── Tela de Revisão ── */
+    .rev-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 28px;
+    }
+
+    .btn-voltar-rev {
+      background: none;
+      border: none;
+      color: var(--text-2);
+      font-size: 24px;
+      cursor: pointer;
+      padding: 4px 8px;
+      touch-action: manipulation;
+      line-height: 1;
+    }
+
+    .rev-progresso {
+      font-size: 13px;
+      color: var(--text-3);
+      flex: 1;
+      text-align: right;
+    }
+
+    .rev-card {
+      background: var(--surface-1);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 24px;
+      margin-bottom: 16px;
+      min-height: 110px;
+    }
+
+    .rev-card-label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-3);
+      margin-bottom: 12px;
+    }
+
+    .rev-card-text {
+      font-size: 17px;
+      color: var(--text-1);
+      line-height: 1.6;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .btn-revelar {
+      width: 100%;
+      padding: 14px;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      color: var(--text-1);
+      font-size: 16px;
+      cursor: pointer;
+      touch-action: manipulation;
+      margin-bottom: 16px;
+    }
+
+    .rev-botoes {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 10px;
+    }
+
+    .btn-rev-esqueci {
+      padding: 14px 0;
+      border-radius: 12px;
+      border: 1px solid rgba(239, 68, 68, 0.4);
+      background: rgba(239, 68, 68, 0.08);
+      color: #f87171;
+      font-size: 15px;
+      font-weight: 500;
+      cursor: pointer;
+      touch-action: manipulation;
+    }
+
+    .btn-rev-lembrei {
+      padding: 14px 0;
+      border-radius: 12px;
+      border: 1px solid rgba(250, 204, 21, 0.4);
+      background: rgba(250, 204, 21, 0.06);
+      color: #fde047;
+      font-size: 15px;
+      font-weight: 500;
+      cursor: pointer;
+      touch-action: manipulation;
+    }
+
+    .btn-rev-facil {
+      padding: 14px 0;
+      border-radius: 12px;
+      border: 1px solid rgba(13, 148, 136, 0.4);
+      background: var(--accent-dim);
+      color: var(--accent);
+      font-size: 15px;
+      font-weight: 500;
+      cursor: pointer;
+      touch-action: manipulation;
+    }
+
+    .rev-fim {
+      text-align: center;
+      padding: 48px 0;
+    }
+
+    .rev-fim-titulo {
+      font-size: 22px;
+      font-weight: 600;
+      color: var(--text-1);
+      margin-bottom: 8px;
+    }
+
+    .rev-fim-sub {
+      font-size: 15px;
+      color: var(--text-2);
+      margin-bottom: 32px;
+    }
   </style>
 </head>
 <body>
@@ -753,6 +877,51 @@
 
   </section>
 
+  <!-- ══ TELA REVISÃO ══ -->
+  <section id="screen-revisao" class="screen" role="main" aria-label="Revisão">
+
+    <div class="rev-header">
+      <button class="btn-voltar-rev" id="btn-sair-revisao" aria-label="Encerrar revisão">
+        ‹
+      </button>
+      <span class="rev-progresso" id="rev-progresso" aria-live="polite"></span>
+    </div>
+
+    <!-- Card atual -->
+    <div id="rev-card-wrap">
+      <div class="rev-card">
+        <p class="rev-card-label">Frente</p>
+        <p class="rev-card-text" id="rev-frente-texto"></p>
+      </div>
+
+      <button class="btn-revelar" id="btn-revelar">Mostrar resposta</button>
+
+      <div class="rev-card" id="rev-card-verso" hidden>
+        <p class="rev-card-label">Verso</p>
+        <p class="rev-card-text" id="rev-verso-texto"></p>
+      </div>
+
+      <div class="rev-botoes" id="rev-botoes-wrap" hidden>
+        <button class="btn-rev-esqueci" id="btn-esqueci">Esqueci</button>
+        <button class="btn-rev-lembrei" id="btn-lembrei">Lembrei</button>
+        <button class="btn-rev-facil"   id="btn-facil">Fácil</button>
+      </div>
+      <p id="rev-msg" class="btn-msg" aria-live="polite"></p>
+    </div>
+
+    <!-- Fim de sessão -->
+    <div id="rev-fim-wrap" hidden>
+      <div class="rev-fim">
+        <p class="rev-fim-titulo">Revisão concluída</p>
+        <p class="rev-fim-sub" id="rev-fim-sub"></p>
+        <button class="btn-accent" id="btn-fim-hoje" touch-action="manipulation">
+          Voltar ao início
+        </button>
+      </div>
+    </div>
+
+  </section>
+
   <!-- ══ CAPTURE FAB ══ -->
   <button class="capture-fab" id="btn-capture" aria-label="Capture">+</button>
   <div class="capture-msg" id="capture-msg" role="status" aria-live="polite">
@@ -846,24 +1015,7 @@
       showCaptureMsg();
     }, { passive: false });
 
-    // ── Card "Pra agora" clicável (placeholder) ──
-    const btnPraAgora = document.getElementById('btn-pra-agora');
-    const revisarMsg  = document.getElementById('revisar-msg');
-    let revisarTimer;
-
-    function showRevisarMsg() {
-      revisarMsg.textContent = 'Revisão disponível em etapa futura.';
-      clearTimeout(revisarTimer);
-      revisarTimer = setTimeout(() => { revisarMsg.textContent = ''; }, 3000);
-    }
-
-    btnPraAgora.addEventListener('click', showRevisarMsg);
-    btnPraAgora.addEventListener('touchend', e => {
-      e.preventDefault();
-      showRevisarMsg();
-    }, { passive: false });
-
-    // ── Botão "Criar tema" — agora controlado pelo módulo de Temas (Etapa 4) ──
+    // ── Botão "Criar tema" — controlado pelo módulo de Temas (Etapa 4) ──
 
     // ── Itens da tela Mais (sem função real) ──
     document.querySelectorAll('#screen-mais .list-item').forEach(btn => {
@@ -888,9 +1040,10 @@
 
   <!-- Etapa 4: boot + Temas -->
   <script type="module">
-    import { boot }                  from './src/db/boot.js';
+    import { boot }                                    from './src/db/boot.js';
     import { listTemas, createTema, getTema, getArea } from './src/domain/tema/temaService.js';
     import { listCards, createCard }                   from './src/domain/card/cardService.js';
+    import { getCardsVencidos, recordReview }          from './src/domain/review/reviewService.js';
 
     const STATUS_LABEL = {
       not_started: 'Não iniciado',
@@ -899,7 +1052,135 @@
       mastered:    'Dominado',
     };
 
-    let currentTemaId = null; // atualizado por abrirDetalhe ao abrir cada Tema
+    let currentTemaId  = null; // atualizado por abrirDetalhe ao abrir cada Tema
+
+    // Estado da sessão de revisão
+    let filaRevisao   = [];
+    let filaIndex     = 0;
+    let revisandoCard = null;
+
+    // ── Revisão — Etapa 7A ──
+
+    async function recalcularHoje(profileId) {
+      const actionEl = document.querySelector('.pra-agora-action');
+      const totalEl  = document.querySelector('.pra-agora-total');
+      const tagEl    = document.querySelector('.pra-agora-tag');
+
+      try {
+        const vencidos = await getCardsVencidos(profileId);
+        const total    = vencidos.length;
+
+        if (tagEl) tagEl.hidden = true;
+
+        if (total === 0) {
+          if (actionEl) actionEl.textContent = 'Nada para revisar agora.';
+          if (totalEl)  totalEl.textContent  = '';
+        } else {
+          const cap = Math.min(10, total);
+          if (actionEl) actionEl.textContent = `Revisar ${cap} agora`;
+          if (totalEl)  totalEl.textContent  =
+            `${total} pendente${total > 1 ? 's' : ''} no total`;
+        }
+      } catch (_) {
+        // Falha silenciosa — não quebra boot
+      }
+    }
+
+    async function abrirRevisao(profileId) {
+      let todos;
+      try {
+        todos = await getCardsVencidos(profileId);
+      } catch (_) {
+        return;
+      }
+      if (todos.length === 0) return;
+
+      filaRevisao   = todos.slice(0, 10);
+      filaIndex     = 0;
+      revisandoCard = null;
+
+      document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+      document.getElementById('screen-revisao').classList.add('active');
+
+      renderCardAtual();
+    }
+
+    function renderCardAtual() {
+      const card = filaRevisao[filaIndex];
+      revisandoCard = card;
+
+      document.getElementById('rev-progresso').textContent =
+        `${filaIndex + 1} / ${filaRevisao.length}`;
+
+      document.getElementById('rev-frente-texto').textContent = card.front;
+      document.getElementById('rev-verso-texto').textContent  = card.back;
+
+      // Reabilita botões e limpa erro do card anterior
+      ['btn-esqueci', 'btn-lembrei', 'btn-facil'].forEach(id => {
+        document.getElementById(id).disabled = false;
+      });
+      document.getElementById('rev-msg').textContent = '';
+
+      // Reseta estado de revelação
+      document.getElementById('btn-revelar').hidden     = false;
+      document.getElementById('rev-card-verso').hidden  = true;
+      document.getElementById('rev-botoes-wrap').hidden = true;
+
+      document.getElementById('rev-card-wrap').hidden = false;
+      document.getElementById('rev-fim-wrap').hidden  = true;
+    }
+
+    function revelar() {
+      document.getElementById('btn-revelar').hidden     = true;
+      document.getElementById('rev-card-verso').hidden  = false;
+      document.getElementById('rev-botoes-wrap').hidden = false;
+    }
+
+    async function avaliar(profileId, result) {
+      if (!revisandoCard) return;
+
+      const btnIds = ['btn-esqueci', 'btn-lembrei', 'btn-facil'];
+      const revMsg = document.getElementById('rev-msg');
+
+      btnIds.forEach(id => { document.getElementById(id).disabled = true; });
+      revMsg.textContent = '';
+
+      try {
+        const { updatedCard } = await recordReview(profileId, revisandoCard, result);
+        filaRevisao[filaIndex] = updatedCard;
+      } catch (_) {
+        // Falha: NÃO avança. Reabilita botões e mostra erro.
+        btnIds.forEach(id => { document.getElementById(id).disabled = false; });
+        revMsg.textContent = 'Erro ao registrar revisão. Tente novamente.';
+        return; // filaIndex NÃO é incrementado
+      }
+
+      filaIndex++;
+
+      if (filaIndex >= filaRevisao.length) {
+        encerrarRevisao(profileId);
+      } else {
+        renderCardAtual();
+      }
+    }
+
+    function encerrarRevisao(profileId) {
+      document.getElementById('rev-card-wrap').hidden = true;
+      document.getElementById('rev-fim-wrap').hidden  = false;
+
+      const total = filaRevisao.length;
+      document.getElementById('rev-fim-sub').textContent =
+        `${total} card${total > 1 ? 's' : ''} revisado${total > 1 ? 's' : ''}.`;
+
+      recalcularHoje(profileId).catch(() => {});
+    }
+
+    function voltarHoje(profileId) {
+      document.getElementById('tab-hoje').click();
+      recalcularHoje(profileId).catch(() => {});
+    }
+
+    // ── Fim revisão ──
 
     async function renderCards(profileId, temaId) {
       const emptyWrap = document.getElementById('cards-empty-wrap');
@@ -1043,6 +1324,34 @@
 
         // Render inicial da lista de Temas
         await renderTemas(profileId);
+
+        // Bloco Hoje — contagem real de Cards vencidos
+        await recalcularHoje(profileId);
+
+        // Botão "Pra agora" — inicia revisão real
+        document.getElementById('btn-pra-agora').addEventListener('click', () => {
+          abrirRevisao(profileId);
+        });
+
+        // Botão encerrar revisão (‹)
+        document.getElementById('btn-sair-revisao').addEventListener('click', () => {
+          voltarHoje(profileId);
+        });
+
+        // Botão "Mostrar resposta"
+        document.getElementById('btn-revelar').addEventListener('click', revelar);
+
+        // Botões de avaliação
+        document.getElementById('btn-esqueci').addEventListener('click',
+          () => avaliar(profileId, 'esqueci'));
+        document.getElementById('btn-lembrei').addEventListener('click',
+          () => avaliar(profileId, 'lembrei'));
+        document.getElementById('btn-facil').addEventListener('click',
+          () => avaliar(profileId, 'facil'));
+
+        // Botão "Voltar ao início" na tela de fim
+        document.getElementById('btn-fim-hoje').addEventListener('click',
+          () => voltarHoje(profileId));
 
         // Referências do formulário
         const formWrap    = document.getElementById('temas-form-wrap');

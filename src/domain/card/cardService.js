@@ -1,8 +1,9 @@
-// src/domain/card/cardService.js — Etapa 6
+// src/domain/card/cardService.js — Etapa 7A (ajuste: today() seguro para timezone)
 // Serviço de domínio para Cards.
 // Abre o banco internamente. A UI nunca manipula db diretamente.
 
 import { openDB } from '../../db/db.js';
+import { today }  from '../../vrvs3p/vrvs3p.js';
 
 function idbReq(request) {
   return new Promise((resolve, reject) => {
@@ -21,10 +22,6 @@ function txDone(tx) {
 
 function isoNow() {
   return new Date().toISOString();
-}
-
-function isoToday() {
-  return new Date().toISOString().slice(0, 10); // YYYY-MM-DD
 }
 
 // Privada: valida que o Tema existe e pertence ao profileId.
@@ -78,7 +75,7 @@ export async function createCard(profileId, temaId, front, back) {
     front:           frontTrimmed,
     back:            backTrimmed,
     vrvsStage:       0,
-    nextReviewDate:  isoToday(),
+    nextReviewDate:  today(),
     currentInterval: 0,
     lastReviewedAt:  null,
     lastResult:      null,

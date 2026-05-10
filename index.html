@@ -196,6 +196,92 @@
       min-height: 44px;
     }
 
+    /* ── Input de texto ── */
+    .input-field {
+      display: block;
+      width: 100%;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 13px 14px;
+      color: var(--text-1);
+      font-size: 16px;
+      font-family: inherit;
+      outline: none;
+      -webkit-appearance: none;
+      margin-bottom: 12px;
+    }
+    .input-field:focus {
+      border-color: var(--accent);
+    }
+
+    /* ── Linha de ações do formulário ── */
+    .form-row {
+      display: flex;
+      gap: 8px;
+    }
+    .form-row button {
+      flex: 1;
+    }
+
+    /* ── Botão accent (preenchido turquesa) ── */
+    .btn-accent {
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      padding: 11px 16px;
+      font-size: 15px;
+      font-weight: 500;
+      font-family: inherit;
+      cursor: pointer;
+      touch-action: manipulation;
+      min-height: 44px;
+    }
+    .btn-accent:disabled {
+      opacity: 0.5;
+    }
+
+    /* ── Botão secundário (cancelar) ── */
+    .btn-secondary {
+      background: var(--surface-2);
+      color: var(--text-2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 11px 16px;
+      font-size: 15px;
+      font-weight: 500;
+      font-family: inherit;
+      cursor: pointer;
+      touch-action: manipulation;
+      min-height: 44px;
+    }
+
+    /* ── Lista de Temas ── */
+    .tema-list {
+      list-style: none;
+      margin-bottom: 12px;
+    }
+    .tema-item {
+      background: var(--surface-1);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 14px 16px;
+      margin-bottom: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .tema-item-name {
+      font-size: 16px;
+      font-weight: 500;
+      color: var(--text-1);
+    }
+    .tema-item-meta {
+      font-size: 13px;
+      color: var(--text-2);
+    }
+
     /* ── Estado bloco ── */
     .estado-text {
       font-size: 14px;
@@ -407,14 +493,36 @@
       <h1 class="screen-title">Temas</h1>
     </header>
 
-    <div class="block">
+    <!-- Formulário inline (oculto por padrão) -->
+    <div id="temas-form-wrap" class="block" hidden>
+      <input class="input-field" type="text" id="input-tema-nome"
+             placeholder="Nome do tema" maxlength="120"
+             autocomplete="off" autocorrect="off" autocapitalize="sentences">
+      <div class="form-row">
+        <button class="btn-secondary" id="btn-cancelar-tema"
+                touch-action="manipulation">Cancelar</button>
+        <button class="btn-accent" id="btn-salvar-tema"
+                touch-action="manipulation">Salvar</button>
+      </div>
+      <p class="btn-msg" id="tema-form-msg" aria-live="polite"></p>
+    </div>
+
+    <!-- Estado vazio (visível por padrão) -->
+    <div id="temas-empty-wrap" class="block">
       <div class="empty">
         <p class="empty-title">Nenhum tema criado.</p>
         <p class="empty-sub">Crie um tema pra começar a organizar seu estudo.</p>
-        <button class="btn-outline" id="btn-criar-tema" touch-action="manipulation">
-          Criar tema
-        </button>
-        <p class="btn-msg" id="criar-tema-msg" aria-live="polite"></p>
+        <button class="btn-outline" id="btn-criar-tema"
+                touch-action="manipulation">Criar tema</button>
+      </div>
+    </div>
+
+    <!-- Lista de temas (oculta por padrão) -->
+    <div id="temas-list-wrap" hidden>
+      <ul id="temas-list" class="tema-list" aria-label="Lista de temas"></ul>
+      <div class="block">
+        <button class="btn-outline" id="btn-novo-tema"
+                touch-action="manipulation">+ Novo tema</button>
       </div>
     </div>
 
@@ -592,22 +700,7 @@
       showRevisarMsg();
     }, { passive: false });
 
-    // ── Botão placeholder: Criar tema ──
-    const btnCriarTema  = document.getElementById('btn-criar-tema');
-    const criarTemaMsg  = document.getElementById('criar-tema-msg');
-    let criarTemaTimer;
-
-    function showCriarTemaMsg() {
-      criarTemaMsg.textContent = 'Criação de temas disponível em etapa futura.';
-      clearTimeout(criarTemaTimer);
-      criarTemaTimer = setTimeout(() => { criarTemaMsg.textContent = ''; }, 3000);
-    }
-
-    btnCriarTema.addEventListener('click', showCriarTemaMsg);
-    btnCriarTema.addEventListener('touchend', e => {
-      e.preventDefault();
-      showCriarTemaMsg();
-    }, { passive: false });
+    // ── Botão "Criar tema" — agora controlado pelo módulo de Temas (Etapa 4) ──
 
     // ── Itens da tela Mais (sem função real) ──
     document.querySelectorAll('#screen-mais .list-item').forEach(btn => {
@@ -630,13 +723,56 @@
     }
   </script>
 
-  <!-- Etapa 2: boot IndexedDB -->
+  <!-- Etapa 4: boot + Temas -->
   <script type="module">
-    import { boot } from './src/db/boot.js';
+    import { boot }                  from './src/db/boot.js';
+    import { listTemas, createTema } from './src/domain/tema/temaService.js';
+
+    const STATUS_LABEL = {
+      not_started: 'Não iniciado',
+      in_study:    'Em estudo',
+      paused:      'Pausado',
+      mastered:    'Dominado',
+    };
+
+    async function renderTemas(profileId) {
+      const listWrap  = document.getElementById('temas-list-wrap');
+      const emptyWrap = document.getElementById('temas-empty-wrap');
+      const listEl    = document.getElementById('temas-list');
+      try {
+        const temas = await listTemas(profileId);
+        if (temas.length === 0) {
+          listWrap.hidden  = true;
+          emptyWrap.hidden = false;
+        } else {
+          emptyWrap.hidden = true;
+          listEl.innerHTML = '';
+          temas.forEach(t => {
+            const li   = document.createElement('li');
+            li.className = 'tema-item';
+
+            const nome = document.createElement('span');
+            nome.className   = 'tema-item-name';
+            nome.textContent = t.name;
+
+            const meta = document.createElement('span');
+            meta.className   = 'tema-item-meta';
+            meta.textContent = 'Geral · ' + (STATUS_LABEL[t.status] ?? t.status);
+
+            li.appendChild(nome);
+            li.appendChild(meta);
+            listEl.appendChild(li);
+          });
+          listWrap.hidden = false;
+        }
+      } catch (_) {
+        // Falha silenciosa — preserva estado visual atual
+      }
+    }
 
     boot()
-      .then(result => {
-        // Bloco Estado — status do banco
+      .then(async result => {
+        // Bloco Estado
         const estadoEl = document.getElementById('estado-text');
         if (estadoEl) {
           estadoEl.textContent = result.ok
@@ -644,11 +780,70 @@
             : 'IndexedDB indisponível. Abra no Safari normal (não modo privado).';
         }
 
-        // Tela Mais — Profile ativo real
+        // Aba Mais — profile ativo
         if (result.ok && result.profileName) {
           const perfilEl = document.getElementById('mais-perfil-nome');
           if (perfilEl) perfilEl.textContent = result.profileName;
         }
+
+        if (!result.ok || !result.activeProfileId) return;
+
+        const profileId = result.activeProfileId;
+
+        // Render inicial da lista de Temas
+        await renderTemas(profileId);
+
+        // Referências do formulário
+        const formWrap    = document.getElementById('temas-form-wrap');
+        const emptyWrap   = document.getElementById('temas-empty-wrap');
+        const listWrap    = document.getElementById('temas-list-wrap');
+        const inputNome   = document.getElementById('input-tema-nome');
+        const btnCriar    = document.getElementById('btn-criar-tema');
+        const btnNovo     = document.getElementById('btn-novo-tema');
+        const btnSalvar   = document.getElementById('btn-salvar-tema');
+        const btnCancelar = document.getElementById('btn-cancelar-tema');
+        const formMsg     = document.getElementById('tema-form-msg');
+
+        function abrirForm() {
+          formWrap.hidden     = false;
+          emptyWrap.hidden    = true;
+          listWrap.hidden     = true;
+          inputNome.value     = '';
+          formMsg.textContent = '';
+          btnSalvar.disabled  = false;
+          inputNome.focus();
+        }
+
+        async function fecharForm() {
+          formWrap.hidden = true;
+          await renderTemas(profileId);
+        }
+
+        async function salvarTema() {
+          const nome = inputNome.value.trim();
+          if (!nome) {
+            formMsg.textContent = 'Digite um nome para o tema.';
+            return;
+          }
+          btnSalvar.disabled  = true;
+          formMsg.textContent = '';
+          try {
+            await createTema(profileId, nome);
+            await fecharForm();
+          } catch (_) {
+            formMsg.textContent = 'Erro ao salvar. Tente novamente.';
+            btnSalvar.disabled  = false;
+          }
+        }
+
+        btnCriar.addEventListener('click',    abrirForm);
+        btnNovo.addEventListener('click',     abrirForm);
+        btnCancelar.addEventListener('click', fecharForm);
+        btnSalvar.addEventListener('click',   salvarTema);
+
+        inputNome.addEventListener('keydown', e => {
+          if (e.key === 'Enter') salvarTema();
+        });
       })
       .catch(() => {
         const estadoEl = document.getElementById('estado-text');

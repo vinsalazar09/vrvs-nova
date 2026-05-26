@@ -1,4 +1,4 @@
-// src/domain/card/cardService.js — Etapa 7B.2 (createCardWithAssets + wrapper createCard)
+// src/domain/card/cardService.js — Etapa 7B.2 + 7C (deleteCard)
 // Serviço de domínio para Cards.
 // Abre o banco internamente. A UI nunca manipula db diretamente.
 
@@ -99,4 +99,35 @@ export async function createCardWithAssets(profileId, temaId, front, back, asset
   await txDone(tx);
 
   return { card, assets: assetObjects };
+}
+
+// Hard delete: card + cardAssets + cardReviews (cascade — sem órfãos).
+export async function deleteCard(profileId, cardId) {
+  if (!profileId) throw new Error('profileId_obrigatorio');
+  if (!cardId)    throw new Error('cardId_obrigatorio');
+
+  const db = await openDB();
+
+  const txRead = db.transaction(['cards', 'cardAssets', 'cardReviews'], 'readonly');
+  const card = await idbReq(txRead.objectStore('cards').get(cardId));
+  const assets = await idbReq(
+    txRead.objectStore('cardAssets')
+      .index('by_profile_cardId')
+      .getAll([profileId, cardId])
+  );
+  const reviews = await idbReq(
+    txRead.objectStore('cardReviews')
+      .index('by_cardId')
+      .getAll(cardId)
+  );
+  await txDone(txRead);
+
+  if (!card)                        throw new Error('card_nao_encontrado');
+  if (card.profileId !== profileId) throw new Error('card_profile_invalido');
+
+  const tx = db.transaction(['cards', 'cardAssets', 'cardReviews'], 'readwrite');
+  tx.objectStore('cards').delete(cardId);
+  assets.forEach(a => tx.objectStore('cardAssets').delete(a.assetId));
+  reviews.forEach(r => tx.objectStore('cardReviews').delete(r.cardReviewId));
+  await txDone(tx);
 }

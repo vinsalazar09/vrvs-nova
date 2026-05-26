@@ -355,6 +355,26 @@
       border-radius: 4px;
       padding: 2px 6px;
     }
+    .card-item-placeholder {
+      color: var(--text-2);
+      font-style: italic;
+    }
+    .card-item-actions {
+      display: flex;
+      justify-content: flex-end;
+      margin-top: 8px;
+    }
+    .btn-card-excluir {
+      background: none;
+      border: none;
+      color: var(--text-3);
+      font-size: 12px;
+      font-family: inherit;
+      padding: 4px 0;
+      cursor: pointer;
+      touch-action: manipulation;
+      min-height: 32px;
+    }
     .input-textarea {
       resize: none;
       min-height: 80px;
@@ -599,6 +619,22 @@
       white-space: pre-wrap;
       word-break: break-word;
     }
+    .rev-card-text[hidden] {
+      display: none;
+    }
+    .rev-card-img {
+      display: block;
+      max-width: 100%;
+      max-height: 220px;
+      object-fit: contain;
+      border-radius: 8px;
+      margin-top: 4px;
+      cursor: pointer;
+      touch-action: manipulation;
+    }
+    .rev-card-img[hidden] {
+      display: none;
+    }
 
     .btn-revelar {
       width: 100%;
@@ -714,6 +750,115 @@
       border: 1px solid var(--border, #2e3138);
       display: block;
       margin-top: 6px;
+    }
+
+    /* ── Viewer de imagem — Etapa 7C ── */
+    .img-viewer {
+      position: fixed;
+      inset: 0;
+      z-index: 300;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .img-viewer[hidden] {
+      display: none;
+    }
+    .img-viewer-backdrop {
+      position: absolute;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.88);
+    }
+    .img-viewer-panel {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      max-width: 100%;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+    }
+    .img-viewer-img {
+      max-width: 100%;
+      max-height: 70vh;
+      object-fit: contain;
+      border-radius: 8px;
+    }
+    .btn-viewer-fechar {
+      width: 100%;
+      max-width: 280px;
+      padding: 14px;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      color: var(--text-1);
+      font-size: 16px;
+      font-weight: 500;
+      font-family: inherit;
+      cursor: pointer;
+      touch-action: manipulation;
+      min-height: 48px;
+    }
+
+    /* ── Confirmação excluir Card — Etapa 7C ── */
+    .confirm-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 250;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+    .confirm-overlay[hidden] {
+      display: none;
+    }
+    .confirm-backdrop {
+      position: absolute;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.6);
+    }
+    .confirm-panel {
+      position: relative;
+      z-index: 1;
+      background: var(--surface-1);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 24px;
+      max-width: 320px;
+      width: 100%;
+    }
+    .confirm-text {
+      font-size: 16px;
+      color: var(--text-1);
+      line-height: 1.5;
+      margin-bottom: 20px;
+    }
+    .confirm-row {
+      display: flex;
+      gap: 10px;
+    }
+    .confirm-row button {
+      flex: 1;
+      min-height: 44px;
+      border-radius: 10px;
+      font-size: 15px;
+      font-weight: 500;
+      font-family: inherit;
+      cursor: pointer;
+      touch-action: manipulation;
+    }
+    .btn-confirm-cancelar {
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      color: var(--text-2);
+    }
+    .btn-confirm-excluir {
+      background: rgba(239, 68, 68, 0.15);
+      border: 1px solid rgba(239, 68, 68, 0.45);
+      color: #f87171;
     }
   </style>
 </head>
@@ -956,6 +1101,7 @@
       <div class="rev-card">
         <p class="rev-card-label">Frente</p>
         <p class="rev-card-text" id="rev-frente-texto"></p>
+        <img class="rev-card-img" id="rev-frente-img" alt="" hidden>
       </div>
 
       <button class="btn-revelar" id="btn-revelar">Mostrar resposta</button>
@@ -963,6 +1109,7 @@
       <div class="rev-card" id="rev-card-verso" hidden>
         <p class="rev-card-label">Verso</p>
         <p class="rev-card-text" id="rev-verso-texto"></p>
+        <img class="rev-card-img" id="rev-verso-img" alt="" hidden>
       </div>
 
       <div class="rev-botoes" id="rev-botoes-wrap" hidden>
@@ -985,6 +1132,30 @@
     </div>
 
   </section>
+
+  <!-- ══ VIEWER DE IMAGEM ══ -->
+  <div id="img-viewer" class="img-viewer" hidden role="dialog" aria-modal="true" aria-label="Visualizar imagem">
+    <div class="img-viewer-backdrop" id="img-viewer-backdrop"></div>
+    <div class="img-viewer-panel">
+      <img class="img-viewer-img" id="img-viewer-img" alt="">
+      <button class="btn-viewer-fechar" id="img-viewer-fechar" type="button"
+              touch-action="manipulation">Fechar</button>
+    </div>
+  </div>
+
+  <!-- ══ CONFIRMAR EXCLUIR CARD ══ -->
+  <div id="confirm-excluir" class="confirm-overlay" hidden role="dialog" aria-modal="true">
+    <div class="confirm-backdrop" id="confirm-excluir-backdrop"></div>
+    <div class="confirm-panel">
+      <p class="confirm-text">Excluir este card? Essa ação não pode ser desfeita.</p>
+      <div class="confirm-row">
+        <button class="btn-confirm-cancelar" id="confirm-excluir-cancelar" type="button"
+                touch-action="manipulation">Cancelar</button>
+        <button class="btn-confirm-excluir" id="confirm-excluir-ok" type="button"
+                touch-action="manipulation">Excluir</button>
+      </div>
+    </div>
+  </div>
 
   <!-- ══ CAPTURE FAB ══ -->
   <button class="capture-fab" id="btn-capture" aria-label="Capture">+</button>
@@ -1106,7 +1277,7 @@
   <script type="module">
     import { boot }                                    from './src/db/boot.js';
     import { listTemas, createTema, getTema, getArea } from './src/domain/tema/temaService.js';
-    import { listCards, createCard, createCardWithAssets } from './src/domain/card/cardService.js';
+    import { listCards, createCard, createCardWithAssets, deleteCard } from './src/domain/card/cardService.js';
     import { processarImagem, getCardAssetBySide, criarThumbUrl, revogarUrls }
              from './src/domain/card/cardAssetService.js';
     import { getCardsVencidos, recordReview }          from './src/domain/review/reviewService.js';
@@ -1128,12 +1299,52 @@
     let _cardThumbUrls   = [];    // URLs de thumbnail na lista — revogadas a cada renderCards
     let _cardsRenderToken = 0;    // Proteção contra stale async
 
+    // Estado da revisão com imagem — Etapa 7C
+    let _revImgUrls       = [];
+    let _revRenderToken   = 0;
+    let _viewerActiveUrl  = null;
+    let _pendingDelete    = null; // { profileId, cardId }
+
     // Estado da sessão de revisão
     let filaRevisao   = [];
     let filaIndex     = 0;
     let revisandoCard = null;
 
-    // ── Revisão — Etapa 7A ──
+    // ── Revisão — Etapa 7A + 7C (imagem) ──
+
+    function revogarRevImgUrls(excludeUrl = null) {
+      _revImgUrls.forEach(u => {
+        if (u && u !== excludeUrl) {
+          try { URL.revokeObjectURL(u); } catch (_) {}
+        }
+      });
+      _revImgUrls = excludeUrl ? _revImgUrls.filter(u => u === excludeUrl) : [];
+    }
+
+    function abrirViewer(src) {
+      if (!src) return;
+      _viewerActiveUrl = src;
+      document.getElementById('img-viewer-img').src = src;
+      document.getElementById('img-viewer').hidden = false;
+    }
+
+    function fecharViewer() {
+      document.getElementById('img-viewer-img').src = '';
+      document.getElementById('img-viewer').hidden = true;
+      _viewerActiveUrl = null;
+    }
+
+    function bindViewerImg(imgEl) {
+      const open = () => {
+        if (imgEl.hidden || !imgEl.src) return;
+        abrirViewer(imgEl.src);
+      };
+      imgEl.addEventListener('click', open);
+      imgEl.addEventListener('touchend', e => {
+        e.preventDefault();
+        open();
+      }, { passive: false });
+    }
 
     async function recalcularHoje(profileId) {
       const actionEl = document.querySelector('.pra-agora-action');
@@ -1176,32 +1387,85 @@
       document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
       document.getElementById('screen-revisao').classList.add('active');
 
-      renderCardAtual();
+      await renderCardAtual(profileId);
     }
 
-    function renderCardAtual() {
+    async function renderCardAtual(profileId) {
       const card = filaRevisao[filaIndex];
       revisandoCard = card;
+
+      _revRenderToken += 1;
+      const myToken = _revRenderToken;
+
+      revogarRevImgUrls(_viewerActiveUrl);
 
       document.getElementById('rev-progresso').textContent =
         `${filaIndex + 1} / ${filaRevisao.length}`;
 
-      document.getElementById('rev-frente-texto').textContent = card.front;
-      document.getElementById('rev-verso-texto').textContent  = card.back;
+      const frenteTexto = document.getElementById('rev-frente-texto');
+      const versoTexto  = document.getElementById('rev-verso-texto');
+      const frenteImg   = document.getElementById('rev-frente-img');
+      const versoImg    = document.getElementById('rev-verso-img');
 
-      // Reabilita botões e limpa erro do card anterior
+      const frontTrim = (card.front ?? '').trim();
+      const backTrim  = (card.back  ?? '').trim();
+
+      if (frontTrim) {
+        frenteTexto.textContent = frontTrim;
+        frenteTexto.hidden = false;
+      } else {
+        frenteTexto.textContent = '';
+        frenteTexto.hidden = true;
+      }
+
+      if (backTrim) {
+        versoTexto.textContent = backTrim;
+        versoTexto.hidden = false;
+      } else {
+        versoTexto.textContent = '';
+        versoTexto.hidden = true;
+      }
+
+      frenteImg.hidden = true;
+      frenteImg.src    = '';
+      versoImg.hidden  = true;
+      versoImg.src     = '';
+
       ['btn-esqueci', 'btn-lembrei', 'btn-facil'].forEach(id => {
         document.getElementById(id).disabled = false;
       });
       document.getElementById('rev-msg').textContent = '';
 
-      // Reseta estado de revelação
       document.getElementById('btn-revelar').hidden     = false;
       document.getElementById('rev-card-verso').hidden  = true;
       document.getElementById('rev-botoes-wrap').hidden = true;
 
       document.getElementById('rev-card-wrap').hidden = false;
       document.getElementById('rev-fim-wrap').hidden  = true;
+
+      try {
+        const [frontAsset, backAsset] = await Promise.all([
+          getCardAssetBySide(profileId, card.cardId, 'front'),
+          getCardAssetBySide(profileId, card.cardId, 'back'),
+        ]);
+
+        if (myToken !== _revRenderToken) return;
+
+        if (frontAsset) {
+          const url = criarThumbUrl(frontAsset.blob);
+          _revImgUrls.push(url);
+          frenteImg.src    = url;
+          frenteImg.hidden = false;
+        }
+        if (backAsset) {
+          const url = criarThumbUrl(backAsset.blob);
+          _revImgUrls.push(url);
+          versoImg.src    = url;
+          versoImg.hidden = false;
+        }
+      } catch (_) {
+        // Falha silenciosa — texto ainda renderiza
+      }
     }
 
     function revelar() {
@@ -1234,11 +1498,14 @@
       if (filaIndex >= filaRevisao.length) {
         encerrarRevisao(profileId);
       } else {
-        renderCardAtual();
+        await renderCardAtual(profileId);
       }
     }
 
     function encerrarRevisao(profileId) {
+      revogarRevImgUrls();
+      fecharViewer();
+
       document.getElementById('rev-card-wrap').hidden = true;
       document.getElementById('rev-fim-wrap').hidden  = false;
 
@@ -1250,8 +1517,34 @@
     }
 
     function voltarHoje(profileId) {
+      revogarRevImgUrls();
+      fecharViewer();
       document.getElementById('tab-hoje').click();
       recalcularHoje(profileId).catch(() => {});
+    }
+
+    function pedirExcluirCard(profileId, cardId) {
+      _pendingDelete = { profileId, cardId };
+      document.getElementById('confirm-excluir').hidden = false;
+    }
+
+    function cancelarExcluirCard() {
+      _pendingDelete = null;
+      document.getElementById('confirm-excluir').hidden = true;
+    }
+
+    async function confirmarExcluirCard() {
+      const pending = _pendingDelete;
+      cancelarExcluirCard();
+      if (!pending || !currentTemaId) return;
+
+      try {
+        await deleteCard(pending.profileId, pending.cardId);
+        await renderCards(pending.profileId, currentTemaId);
+        await recalcularHoje(pending.profileId);
+      } catch (_) {
+        // Falha silenciosa — lista permanece
+      }
     }
 
     // ── Fim revisão ──
@@ -1288,21 +1581,46 @@
             const li = document.createElement('li');
             li.className = 'card-item';
 
+            const frontTrim = (c.front ?? '').trim();
+            const backTrim  = (c.back  ?? '').trim();
+
             const front = document.createElement('p');
             front.className   = 'card-item-front';
-            front.textContent = c.front;
+            front.textContent = frontTrim || 'Card com imagem';
+            if (!frontTrim) front.classList.add('card-item-placeholder');
 
             const back = document.createElement('p');
             back.className   = 'card-item-back';
-            back.textContent = c.back;
+            back.textContent = backTrim || 'Card com imagem';
+            if (!backTrim) back.classList.add('card-item-placeholder');
 
             const badge = document.createElement('span');
             badge.className   = 'card-item-badge';
             badge.textContent = 'Novo · revisão hoje';
 
+            const actions = document.createElement('div');
+            actions.className = 'card-item-actions';
+
+            const btnExcluir = document.createElement('button');
+            btnExcluir.className   = 'btn-card-excluir';
+            btnExcluir.type        = 'button';
+            btnExcluir.textContent = 'Excluir';
+            btnExcluir.addEventListener('click', e => {
+              e.stopPropagation();
+              pedirExcluirCard(profileId, c.cardId);
+            });
+            btnExcluir.addEventListener('touchend', e => {
+              e.preventDefault();
+              e.stopPropagation();
+              pedirExcluirCard(profileId, c.cardId);
+            }, { passive: false });
+
+            actions.appendChild(btnExcluir);
+
             li.appendChild(front);
             li.appendChild(back);
             li.appendChild(badge);
+            li.appendChild(actions);
             listEl.appendChild(li);
 
             // Thumbnail da frente — async, sem bloquear render da lista
@@ -1456,6 +1774,41 @@
         // Botão "Voltar ao início" na tela de fim
         document.getElementById('btn-fim-hoje').addEventListener('click',
           () => voltarHoje(profileId));
+
+        // Viewer de imagem — Etapa 7C
+        bindViewerImg(document.getElementById('rev-frente-img'));
+        bindViewerImg(document.getElementById('rev-verso-img'));
+
+        const fecharViewerHandler = () => fecharViewer();
+        document.getElementById('img-viewer-fechar').addEventListener('click', fecharViewerHandler);
+        document.getElementById('img-viewer-fechar').addEventListener('touchend', e => {
+          e.preventDefault();
+          fecharViewerHandler();
+        }, { passive: false });
+        document.getElementById('img-viewer-backdrop').addEventListener('click', fecharViewerHandler);
+        document.getElementById('img-viewer-backdrop').addEventListener('touchend', e => {
+          e.preventDefault();
+          fecharViewerHandler();
+        }, { passive: false });
+
+        // Confirmação excluir Card — Etapa 7C
+        document.getElementById('confirm-excluir-cancelar').addEventListener('click', cancelarExcluirCard);
+        document.getElementById('confirm-excluir-cancelar').addEventListener('touchend', e => {
+          e.preventDefault();
+          cancelarExcluirCard();
+        }, { passive: false });
+        document.getElementById('confirm-excluir-backdrop').addEventListener('click', cancelarExcluirCard);
+        document.getElementById('confirm-excluir-backdrop').addEventListener('touchend', e => {
+          e.preventDefault();
+          cancelarExcluirCard();
+        }, { passive: false });
+        document.getElementById('confirm-excluir-ok').addEventListener('click', () => {
+          confirmarExcluirCard();
+        });
+        document.getElementById('confirm-excluir-ok').addEventListener('touchend', e => {
+          e.preventDefault();
+          confirmarExcluirCard();
+        }, { passive: false });
 
         // Referências do formulário
         const formWrap    = document.getElementById('temas-form-wrap');

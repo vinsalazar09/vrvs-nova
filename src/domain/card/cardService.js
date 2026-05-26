@@ -1,4 +1,4 @@
-// src/domain/card/cardService.js — Etapa 7B.2 + 7C + 7E (getCard, updateCardWithAssets)
+// src/domain/card/cardService.js — Etapa 7B.2 + 7C (deleteCard)
 // Serviço de domínio para Cards.
 // Abre o banco internamente. A UI nunca manipula db diretamente.
 
@@ -99,88 +99,6 @@ export async function createCardWithAssets(profileId, temaId, front, back, asset
   await txDone(tx);
 
   return { card, assets: assetObjects };
-}
-
-// Lê um Card ativo do perfil.
-export async function getCard(profileId, cardId) {
-  if (!profileId) throw new Error('profileId_obrigatorio');
-  if (!cardId)    throw new Error('cardId_obrigatorio');
-
-  const db   = await openDB();
-  const tx   = db.transaction(['cards'], 'readonly');
-  const card = await idbReq(tx.objectStore('cards').get(cardId));
-  await txDone(tx);
-
-  if (!card)                        throw new Error('card_nao_encontrado');
-  if (card.profileId !== profileId) throw new Error('card_profile_invalido');
-  if (card.archivedAt !== null)     throw new Error('card_arquivado');
-  return card;
-}
-
-// Atualiza texto e assets de um Card existente.
-// assetChanges: { upsert: [{ side, blob, thumbBlob, ... }], remove: ['front'|'back'] }
-// Não altera vrvsStage, nextReviewDate, lastReviewedAt, lastResult.
-export async function updateCardWithAssets(profileId, cardId, front, back, assetChanges = {}) {
-  const frontTrimmed = (front ?? '').trim();
-  const backTrimmed  = (back  ?? '').trim();
-  const upsert       = assetChanges.upsert ?? [];
-  const remove       = assetChanges.remove ?? [];
-
-  const db = await openDB();
-
-  const txRead = db.transaction(['cards', 'cardAssets'], 'readonly');
-  const card   = await idbReq(tx.objectStore('cards').get(cardId));
-  const allAssets = await idbReq(
-    txRead.objectStore('cardAssets')
-      .index('by_profile_cardId')
-      .getAll([profileId, cardId])
-  );
-  await txDone(txRead);
-
-  if (!card)                        throw new Error('card_nao_encontrado');
-  if (card.profileId !== profileId) throw new Error('card_profile_invalido');
-  if (card.archivedAt !== null)     throw new Error('card_arquivado');
-
-  const activeAssets = allAssets.filter(a => a.archivedAt === null);
-
-  function sideWillHaveContent(side, textTrimmed) {
-    if (textTrimmed) return true;
-    if (upsert.some(a => a.side === side)) return true;
-    if (remove.includes(side)) return false;
-    return activeAssets.some(a => a.side === side);
-  }
-
-  if (!sideWillHaveContent('front', frontTrimmed)) throw new Error('front_vazio');
-  if (!sideWillHaveContent('back',  backTrimmed))  throw new Error('back_vazio');
-
-  const ts = isoNow();
-  const updatedCard = {
-    ...card,
-    front:     frontTrimmed,
-    back:      backTrimmed,
-    updatedAt: ts,
-  };
-
-  const tx = db.transaction(['cards', 'cardAssets'], 'readwrite');
-  tx.objectStore('cards').put(updatedCard);
-
-  for (const u of upsert) {
-    activeAssets
-      .filter(a => a.side === u.side)
-      .forEach(a => tx.objectStore('cardAssets').delete(a.assetId));
-    tx.objectStore('cardAssets').add(
-      buildCardAsset(profileId, cardId, u.side, u, ts)
-    );
-  }
-
-  for (const side of remove) {
-    if (upsert.some(u => u.side === side)) continue;
-    const asset = activeAssets.find(a => a.side === side);
-    if (asset) tx.objectStore('cardAssets').delete(asset.assetId);
-  }
-
-  await txDone(tx);
-  return { card: updatedCard };
 }
 
 // Hard delete: card + cardAssets + cardReviews (cascade — sem órfãos).

@@ -1,9 +1,10 @@
-// src/domain/card/cardService.js — Etapa 7A (ajuste: today() seguro para timezone)
+// src/domain/card/cardService.js — Etapa 7B.2 (createCardWithAssets + wrapper createCard)
 // Serviço de domínio para Cards.
 // Abre o banco internamente. A UI nunca manipula db diretamente.
 
-import { openDB } from '../../db/db.js';
-import { today }  from '../../vrvs3p/vrvs3p.js';
+import { openDB }        from '../../db/db.js';
+import { today }         from '../../vrvs3p/vrvs3p.js';
+import { buildCardAsset } from './cardAssetService.js';
 
 function idbReq(request) {
   return new Promise((resolve, reject) => {
@@ -25,7 +26,6 @@ function isoNow() {
 }
 
 // Privada: valida que o Tema existe e pertence ao profileId.
-// Recebe conexão db já aberta. Lança erro controlado se inválido.
 async function _validateTema(db, profileId, temaId) {
   const tx   = db.transaction(['temas'], 'readonly');
   const tema = await idbReq(tx.objectStore('temas').get(temaId));
@@ -36,8 +36,6 @@ async function _validateTema(db, profileId, temaId) {
 }
 
 // Lista Cards do Tema, excluindo arquivados.
-// Usa índice composto by_profile_temaId — retorna apenas Cards do profile E do tema.
-// Ordena por createdAt asc (ordem de criação).
 export async function listCards(profileId, temaId) {
   const db  = await openDB();
   const tx  = db.transaction(['cards'], 'readonly');
@@ -52,11 +50,15 @@ export async function listCards(profileId, temaId) {
     .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
 }
 
-// Cria Card novo vinculado ao Tema.
-// Valida front e back não vazios.
-// Valida que o Tema existe e pertence ao profileId (isolamento absoluto).
-// Inicializa campos do VRVS 3P com valores zerados conforme schema.
+// Cria Card sem imagens — retrocompatível com todas as chamadas existentes.
 export async function createCard(profileId, temaId, front, back) {
+  return createCardWithAssets(profileId, temaId, front, back, []);
+}
+
+// Cria Card com assets opcionais já processados em memória.
+// assets: [{ side, blob, thumbBlob, width, height, size, mimeType }]
+// Transação atômica única: cards + cardAssets.
+export async function createCardWithAssets(profileId, temaId, front, back, assets = []) {
   const frontTrimmed = (front ?? '').trim();
   const backTrimmed  = (back  ?? '').trim();
   if (!frontTrimmed) throw new Error('front_vazio');
@@ -84,9 +86,15 @@ export async function createCard(profileId, temaId, front, back) {
     archivedAt:      null,
   };
 
-  const txWrite = db.transaction(['cards'], 'readwrite');
-  txWrite.objectStore('cards').add(card);
-  await txDone(txWrite);
+  // Montar objetos asset com cardId já definido — antes de abrir transação de escrita
+  const assetObjects = assets.map(a => buildCardAsset(profileId, cardId, a.side, a, ts));
 
-  return card;
+  // Transação atômica: cards + cardAssets sempre juntos.
+  // Se assets = [], nenhuma escrita em cardAssets — mas o padrão de transação é único.
+  const tx = db.transaction(['cards', 'cardAssets'], 'readwrite');
+  tx.objectStore('cards').add(card);
+  assetObjects.forEach(asset => tx.objectStore('cardAssets').add(asset));
+  await txDone(tx);
+
+  return { card, assets: assetObjects };
 }

@@ -672,6 +672,49 @@
       color: var(--text-2);
       margin-bottom: 32px;
     }
+
+    /* ── Imagem em Card — Etapa 7B.2 ── */
+    .img-add-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+
+    .btn-img-add {
+      background: none;
+      border: 1px dashed var(--border, #2e3138);
+      border-radius: 8px;
+      color: var(--text-2);
+      font-size: 13px;
+      padding: 6px 14px;
+      cursor: pointer;
+      touch-action: manipulation;
+      flex-shrink: 0;
+    }
+
+    .img-preview-wrap {
+      flex-shrink: 0;
+    }
+
+    .img-preview-thumb {
+      width: 60px;
+      height: 60px;
+      object-fit: cover;
+      border-radius: 6px;
+      border: 1px solid var(--border, #2e3138);
+      display: block;
+    }
+
+    .card-item-thumb {
+      width: 48px;
+      height: 48px;
+      object-fit: cover;
+      border-radius: 6px;
+      border: 1px solid var(--border, #2e3138);
+      display: block;
+      margin-top: 6px;
+    }
   </style>
 </head>
 <body>
@@ -789,13 +832,34 @@
         <!-- Formulário inline -->
         <div id="cards-form-wrap" class="block" hidden>
           <p class="block-label">Novo card</p>
+
           <input class="input-field" type="text" id="input-card-front"
                  placeholder="Frente / Pergunta" maxlength="500"
                  autocomplete="off" autocorrect="off" autocapitalize="sentences">
+
+          <input type="file" id="input-img-front" accept="image/*" hidden>
+          <div class="img-add-row">
+            <button class="btn-img-add" id="btn-img-front" type="button"
+                    touch-action="manipulation">+ Imagem da frente</button>
+            <div id="img-preview-front" class="img-preview-wrap" hidden>
+              <img class="img-preview-thumb" id="thumb-front" alt="Pré-visualização frente">
+            </div>
+          </div>
+
           <textarea class="input-field input-textarea" id="input-card-back"
                     placeholder="Verso / Resposta" maxlength="1000"
                     autocomplete="off" autocorrect="off"
                     autocapitalize="sentences" rows="3"></textarea>
+
+          <input type="file" id="input-img-back" accept="image/*" hidden>
+          <div class="img-add-row">
+            <button class="btn-img-add" id="btn-img-back" type="button"
+                    touch-action="manipulation">+ Imagem do verso</button>
+            <div id="img-preview-back" class="img-preview-wrap" hidden>
+              <img class="img-preview-thumb" id="thumb-back" alt="Pré-visualização verso">
+            </div>
+          </div>
+
           <div class="form-row">
             <button class="btn-secondary" id="btn-cancelar-card"
                     touch-action="manipulation">Cancelar</button>
@@ -1042,7 +1106,9 @@
   <script type="module">
     import { boot }                                    from './src/db/boot.js';
     import { listTemas, createTema, getTema, getArea } from './src/domain/tema/temaService.js';
-    import { listCards, createCard }                   from './src/domain/card/cardService.js';
+    import { listCards, createCard, createCardWithAssets } from './src/domain/card/cardService.js';
+    import { processarImagem, getCardAssetBySide, criarThumbUrl, revogarUrls }
+             from './src/domain/card/cardAssetService.js';
     import { getCardsVencidos, recordReview }          from './src/domain/review/reviewService.js';
 
     const STATUS_LABEL = {
@@ -1053,6 +1119,14 @@
     };
 
     let currentTemaId  = null; // atualizado por abrirDetalhe ao abrir cada Tema
+
+    // Estado de imagem do formulário de Card — Etapa 7B.2
+    let frontProcessed   = null;  // { blob, thumbBlob, width, height, size, mimeType }
+    let backProcessed    = null;
+    let frontPreviewUrl  = null;  // URL criada para preview inline — revogada ao fechar
+    let backPreviewUrl   = null;
+    let _cardThumbUrls   = [];    // URLs de thumbnail na lista — revogadas a cada renderCards
+    let _cardsRenderToken = 0;    // Proteção contra stale async
 
     // Estado da sessão de revisão
     let filaRevisao   = [];
@@ -1188,17 +1262,29 @@
       const formWrap  = document.getElementById('cards-form-wrap');
       const listEl    = document.getElementById('cards-list');
 
+      // Token: identifica este render — protege contra stale async
+      _cardsRenderToken += 1;
+      const myToken = _cardsRenderToken;
+
+      revogarUrls(_cardThumbUrls);
+      _cardThumbUrls = [];
+
       formWrap.hidden = true;
 
       try {
         const cards = await listCards(profileId, temaId);
+
+        // Se outro render foi iniciado enquanto aguardávamos, abandonar
+        if (myToken !== _cardsRenderToken) return;
+
         if (cards.length === 0) {
           listWrap.hidden  = true;
           emptyWrap.hidden = false;
         } else {
           emptyWrap.hidden = true;
           listEl.innerHTML = '';
-          cards.forEach(c => {
+
+          for (const c of cards) {
             const li = document.createElement('li');
             li.className = 'card-item';
 
@@ -1218,7 +1304,25 @@
             li.appendChild(back);
             li.appendChild(badge);
             listEl.appendChild(li);
-          });
+
+            // Thumbnail da frente — async, sem bloquear render da lista
+            const liRef    = li;
+            const tokenRef = myToken;
+            getCardAssetBySide(profileId, c.cardId, 'front')
+              .then(asset => {
+                if (tokenRef !== _cardsRenderToken) return;
+                if (!asset) return;
+                const url = criarThumbUrl(asset.thumbBlob);
+                _cardThumbUrls.push(url);
+                const img     = document.createElement('img');
+                img.className = 'card-item-thumb';
+                img.alt       = '';
+                img.src       = url;
+                liRef.appendChild(img);
+              })
+              .catch(() => {});
+          }
+
           listWrap.hidden = false;
         }
       } catch (_) {
@@ -1414,38 +1518,102 @@
 
         // ── Handlers de Cards ──
         function abrirFormCard() {
-          document.getElementById('cards-form-wrap').hidden  = false;
-          document.getElementById('cards-empty-wrap').hidden = true;
-          document.getElementById('cards-list-wrap').hidden  = true;
-          document.getElementById('input-card-front').value  = '';
-          document.getElementById('input-card-back').value   = '';
+          // Revogar URLs de preview anteriores
+          if (frontPreviewUrl) { URL.revokeObjectURL(frontPreviewUrl); frontPreviewUrl = null; }
+          if (backPreviewUrl)  { URL.revokeObjectURL(backPreviewUrl);  backPreviewUrl  = null; }
+          frontProcessed = null;
+          backProcessed  = null;
+
+          document.getElementById('cards-form-wrap').hidden   = false;
+          document.getElementById('cards-empty-wrap').hidden  = true;
+          document.getElementById('cards-list-wrap').hidden   = true;
+          document.getElementById('input-card-front').value   = '';
+          document.getElementById('input-card-back').value    = '';
           document.getElementById('card-form-msg').textContent = '';
           document.getElementById('btn-salvar-card').disabled  = false;
+          document.getElementById('img-preview-front').hidden  = true;
+          document.getElementById('img-preview-back').hidden   = true;
+          document.getElementById('input-img-front').value     = '';
+          document.getElementById('input-img-back').value      = '';
           document.getElementById('input-card-front').focus();
         }
 
         async function fecharFormCard() {
+          if (frontPreviewUrl) { URL.revokeObjectURL(frontPreviewUrl); frontPreviewUrl = null; }
+          if (backPreviewUrl)  { URL.revokeObjectURL(backPreviewUrl);  backPreviewUrl  = null; }
+          frontProcessed = null;
+          backProcessed  = null;
           document.getElementById('cards-form-wrap').hidden = true;
           if (currentTemaId) await renderCards(profileId, currentTemaId);
         }
 
         async function salvarCard() {
-          const front = document.getElementById('input-card-front').value.trim();
-          const back  = document.getElementById('input-card-back').value.trim();
-          const msg   = document.getElementById('card-form-msg');
+          const front     = document.getElementById('input-card-front').value.trim();
+          const back      = document.getElementById('input-card-back').value.trim();
+          const msg       = document.getElementById('card-form-msg');
+          const btnSalvar = document.getElementById('btn-salvar-card');
 
           if (!front) { msg.textContent = 'Digite a frente do card.'; return; }
           if (!back)  { msg.textContent = 'Digite o verso do card.';  return; }
 
-          document.getElementById('btn-salvar-card').disabled = true;
-          msg.textContent = '';
+          btnSalvar.disabled  = true;
+          msg.textContent     = '';
 
           try {
-            await createCard(profileId, currentTemaId, front, back);
+            const assets = [];
+            if (frontProcessed) assets.push({ side: 'front', ...frontProcessed });
+            if (backProcessed)  assets.push({ side: 'back',  ...backProcessed  });
+
+            await createCardWithAssets(profileId, currentTemaId, front, back, assets);
             await fecharFormCard();
-          } catch (_) {
-            msg.textContent = 'Erro ao salvar. Tente novamente.';
-            document.getElementById('btn-salvar-card').disabled = false;
+          } catch (e) {
+            const isQuota =
+              (e instanceof DOMException && e.name === 'QuotaExceededError') ||
+              (e?.message ?? '').toLowerCase().includes('quota');
+
+            msg.textContent = isQuota
+              ? 'Espaço insuficiente para salvar a imagem. Tente uma imagem menor.'
+              : 'Erro ao salvar. Tente novamente.';
+            btnSalvar.disabled = false;
+          }
+        }
+
+        async function handleImageInput(side) {
+          const inputEl   = document.getElementById(side === 'front' ? 'input-img-front'   : 'input-img-back');
+          const previewEl = document.getElementById(side === 'front' ? 'img-preview-front' : 'img-preview-back');
+          const thumbEl   = document.getElementById(side === 'front' ? 'thumb-front'       : 'thumb-back');
+          const msg       = document.getElementById('card-form-msg');
+          const btnSalvar = document.getElementById('btn-salvar-card');
+
+          const file = inputEl.files[0];
+          if (!file) return;
+
+          msg.textContent    = 'Processando imagem…';
+          btnSalvar.disabled = true;
+
+          try {
+            const processed = await processarImagem(file);
+
+            if (side === 'front' && frontPreviewUrl) { URL.revokeObjectURL(frontPreviewUrl); }
+            if (side === 'back'  && backPreviewUrl)  { URL.revokeObjectURL(backPreviewUrl);  }
+
+            const url = URL.createObjectURL(processed.thumbBlob);
+            if (side === 'front') { frontProcessed = processed; frontPreviewUrl = url; }
+            else                  { backProcessed  = processed; backPreviewUrl  = url; }
+
+            thumbEl.src      = url;
+            previewEl.hidden = false;
+            msg.textContent  = '';
+            btnSalvar.disabled = false;
+          } catch (e) {
+            const erros = {
+              arquivo_muito_grande:        'Imagem muito grande (máx 10 MB).',
+              arquivo_nao_e_imagem:        'Selecione um arquivo de imagem.',
+              imagem_invalida:             'Não foi possível ler a imagem.',
+              imagem_impossivel_comprimir: 'Imagem não pôde ser comprimida.',
+            };
+            msg.textContent    = erros[e.message] ?? 'Erro ao processar imagem.';
+            btnSalvar.disabled = false;
           }
         }
 
@@ -1453,6 +1621,17 @@
         document.getElementById('btn-novo-card').addEventListener('click',  abrirFormCard);
         document.getElementById('btn-cancelar-card').addEventListener('click', fecharFormCard);
         document.getElementById('btn-salvar-card').addEventListener('click',   salvarCard);
+
+        // Botões de imagem — acionar file input via gesture (exigido pelo iOS)
+        document.getElementById('btn-img-front').addEventListener('click',
+          () => document.getElementById('input-img-front').click());
+        document.getElementById('btn-img-back').addEventListener('click',
+          () => document.getElementById('input-img-back').click());
+
+        document.getElementById('input-img-front').addEventListener('change',
+          () => handleImageInput('front'));
+        document.getElementById('input-img-back').addEventListener('change',
+          () => handleImageInput('back'));
       })
       .catch(() => {
         const estadoEl = document.getElementById('estado-text');

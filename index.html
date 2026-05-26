@@ -1553,8 +1553,10 @@
           const msg       = document.getElementById('card-form-msg');
           const btnSalvar = document.getElementById('btn-salvar-card');
 
-          if (!front) { msg.textContent = 'Digite a frente do card.'; return; }
-          if (!back)  { msg.textContent = 'Digite o verso do card.';  return; }
+          const temFrenteCont = front || frontProcessed;
+          const temVersoCont  = back  || backProcessed;
+          if (!temFrenteCont) { msg.textContent = 'Adicione texto ou imagem na frente.'; return; }
+          if (!temVersoCont)  { msg.textContent = 'Adicione texto ou imagem no verso.';  return; }
 
           btnSalvar.disabled  = true;
           msg.textContent     = '';

@@ -61,8 +61,10 @@ export async function createCard(profileId, temaId, front, back) {
 export async function createCardWithAssets(profileId, temaId, front, back, assets = []) {
   const frontTrimmed = (front ?? '').trim();
   const backTrimmed  = (back  ?? '').trim();
-  if (!frontTrimmed) throw new Error('front_vazio');
-  if (!backTrimmed)  throw new Error('back_vazio');
+  const hasFrontAsset = assets.some(a => a.side === 'front');
+  const hasBackAsset  = assets.some(a => a.side === 'back');
+  if (!frontTrimmed && !hasFrontAsset) throw new Error('front_vazio');
+  if (!backTrimmed  && !hasBackAsset)  throw new Error('back_vazio');
 
   const db = await openDB();
   await _validateTema(db, profileId, temaId);

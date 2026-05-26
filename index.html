@@ -655,6 +655,29 @@
       gap: 10px;
     }
 
+    #rev-botoes-wrap[hidden],
+    .rev-botoes[hidden] {
+      display: none !important;
+    }
+
+    #rev-card-verso[hidden] {
+      display: none !important;
+    }
+
+    #btn-revelar[hidden] {
+      display: none !important;
+    }
+
+    body.modo-revisao .tab-bar,
+    body.modo-revisao .capture-fab,
+    body.modo-revisao .capture-msg {
+      display: none;
+    }
+
+    body.modo-revisao #screen-revisao.active {
+      padding-bottom: calc(env(safe-area-inset-bottom) + 24px);
+    }
+
     .btn-rev-esqueci {
       padding: 14px 0;
       border-radius: 12px;
@@ -1386,6 +1409,7 @@
 
       document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
       document.getElementById('screen-revisao').classList.add('active');
+      document.body.classList.add('modo-revisao');
 
       await renderCardAtual(profileId);
     }
@@ -1461,7 +1485,7 @@
           const url = criarThumbUrl(backAsset.blob);
           _revImgUrls.push(url);
           versoImg.src    = url;
-          versoImg.hidden = false;
+          versoImg.hidden = true;
         }
       } catch (_) {
         // Falha silenciosa — texto ainda renderiza
@@ -1472,6 +1496,8 @@
       document.getElementById('btn-revelar').hidden     = true;
       document.getElementById('rev-card-verso').hidden  = false;
       document.getElementById('rev-botoes-wrap').hidden = false;
+      const versoImg = document.getElementById('rev-verso-img');
+      if (versoImg.src) versoImg.hidden = false;
     }
 
     async function avaliar(profileId, result) {
@@ -1519,6 +1545,7 @@
     function voltarHoje(profileId) {
       revogarRevImgUrls();
       fecharViewer();
+      document.body.classList.remove('modo-revisao');
       document.getElementById('tab-hoje').click();
       recalcularHoje(profileId).catch(() => {});
     }

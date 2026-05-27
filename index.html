@@ -375,6 +375,37 @@
       touch-action: manipulation;
       min-height: 32px;
     }
+    .card-item {
+      cursor: pointer;
+    }
+
+    /* ── Detalhe read-only do Card — 7E.1 ── */
+    .card-det-text {
+      font-size: 15px;
+      color: var(--text-1);
+      white-space: pre-wrap;
+      line-height: 1.55;
+      padding-top: 4px;
+    }
+    .card-det-img {
+      width: 100%;
+      border-radius: 8px;
+      margin-top: 10px;
+      display: block;
+      cursor: pointer;
+      touch-action: manipulation;
+    }
+    .card-det-excluir {
+      background: none;
+      border: none;
+      color: var(--text-3);
+      font-size: 13px;
+      font-family: inherit;
+      padding: 8px 0;
+      cursor: pointer;
+      touch-action: manipulation;
+      min-height: 40px;
+    }
     .input-textarea {
       resize: none;
       min-height: 80px;
@@ -1037,6 +1068,28 @@
           <p class="btn-msg" id="card-form-msg" aria-live="polite"></p>
         </div>
 
+        <!-- Detalhe read-only do Card — 7E.1 -->
+        <div id="card-detalhe-wrap" hidden>
+          <div class="block">
+            <button class="btn-voltar" id="btn-card-detalhe-voltar" type="button"
+                    touch-action="manipulation">← Cards</button>
+          </div>
+          <div class="block">
+            <p class="block-label">Frente</p>
+            <p class="card-det-text" id="card-det-front"></p>
+            <img class="card-det-img" id="card-det-img-front" alt="Imagem da frente" hidden>
+          </div>
+          <div class="block">
+            <p class="block-label">Verso</p>
+            <p class="card-det-text" id="card-det-back"></p>
+            <img class="card-det-img" id="card-det-img-back" alt="Imagem do verso" hidden>
+          </div>
+          <div class="block">
+            <button class="card-det-excluir" id="btn-card-detalhe-excluir" type="button"
+                    touch-action="manipulation">Excluir card</button>
+          </div>
+        </div>
+
       </div>
 
       <div class="block">
@@ -1328,6 +1381,9 @@
     let _viewerActiveUrl  = null;
     let _pendingDelete    = null; // { profileId, cardId }
 
+    let currentCardId    = null; // card aberto no detalhe read-only — 7E.1
+    let _cardDetalheUrls = [];   // object URLs do detalhe — revogadas ao fechar
+
     // Estado da sessão de revisão
     let filaRevisao   = [];
     let filaIndex     = 0;
@@ -1567,6 +1623,17 @@
 
       try {
         await deleteCard(pending.profileId, pending.cardId);
+        // Se estávamos no detalhe, fechar antes de renderizar lista
+        if (currentCardId !== null) {
+          revogarUrls(_cardDetalheUrls);
+          _cardDetalheUrls = [];
+          currentCardId = null;
+          const fi = document.getElementById('card-det-img-front');
+          const bi = document.getElementById('card-det-img-back');
+          if (fi) { fi.hidden = true; fi.src = ''; }
+          if (bi) { bi.hidden = true; bi.src = ''; }
+          document.getElementById('card-detalhe-wrap').hidden = true;
+        }
         await renderCards(pending.profileId, currentTemaId);
         await recalcularHoje(pending.profileId);
       } catch (_) {
@@ -1641,6 +1708,14 @@
             li.appendChild(front);
             li.appendChild(badge);
             li.appendChild(actions);
+
+            // Tap no item abre detalhe read-only (Excluir usa stopPropagation)
+            li.addEventListener('click', () => abrirCardDetalhe(profileId, c));
+            li.addEventListener('touchend', e => {
+              e.preventDefault();
+              abrirCardDetalhe(profileId, c);
+            }, { passive: false });
+
             listEl.appendChild(li);
 
             const liRef    = li;
@@ -1666,6 +1741,67 @@
         // Falha silenciosa — preserva estado visual atual
       }
     }
+
+    // ── Detalhe read-only do Card — 7E.1 ──
+
+    async function abrirCardDetalhe(profileId, card) {
+      revogarUrls(_cardDetalheUrls);
+      _cardDetalheUrls = [];
+      currentCardId = card.cardId;
+
+      document.getElementById('cards-list-wrap').hidden   = true;
+      document.getElementById('cards-empty-wrap').hidden  = true;
+      document.getElementById('cards-form-wrap').hidden   = true;
+      document.getElementById('card-detalhe-wrap').hidden = false;
+
+      const frontTextEl = document.getElementById('card-det-front');
+      const backTextEl  = document.getElementById('card-det-back');
+      const frontImgEl  = document.getElementById('card-det-img-front');
+      const backImgEl   = document.getElementById('card-det-img-back');
+
+      frontTextEl.textContent = (card.front ?? '').trim() || '(sem texto)';
+      backTextEl.textContent  = (card.back  ?? '').trim() || '(sem texto)';
+      frontImgEl.hidden = true;
+      frontImgEl.src    = '';
+      backImgEl.hidden  = true;
+      backImgEl.src     = '';
+
+      const snapId = card.cardId; // proteção contra stale async
+
+      getCardAssetBySide(profileId, card.cardId, 'front')
+        .then(asset => {
+          if (currentCardId !== snapId || !asset) return;
+          const url = URL.createObjectURL(asset.blob);
+          _cardDetalheUrls.push(url);
+          frontImgEl.src    = url;
+          frontImgEl.hidden = false;
+        })
+        .catch(() => {});
+
+      getCardAssetBySide(profileId, card.cardId, 'back')
+        .then(asset => {
+          if (currentCardId !== snapId || !asset) return;
+          const url = URL.createObjectURL(asset.blob);
+          _cardDetalheUrls.push(url);
+          backImgEl.src    = url;
+          backImgEl.hidden = false;
+        })
+        .catch(() => {});
+    }
+
+    function fecharCardDetalhe(profileId, temaId) {
+      revogarUrls(_cardDetalheUrls);
+      _cardDetalheUrls = [];
+      currentCardId = null;
+      const fi = document.getElementById('card-det-img-front');
+      const bi = document.getElementById('card-det-img-back');
+      fi.hidden = true; fi.src = '';
+      bi.hidden = true; bi.src = '';
+      document.getElementById('card-detalhe-wrap').hidden = true;
+      renderCards(profileId, temaId);
+    }
+
+    // ── Fim detalhe read-only do Card ──
 
     async function abrirDetalhe(profileId, temaId) {
       const listWrap    = document.getElementById('temas-list-wrap');
@@ -2006,6 +2142,24 @@
           () => handleImageInput('front'));
         document.getElementById('input-img-back').addEventListener('change',
           () => handleImageInput('back'));
+
+        // Detalhe read-only do Card — 7E.1
+        document.getElementById('btn-card-detalhe-voltar').addEventListener('click', () => {
+          fecharCardDetalhe(profileId, currentTemaId);
+        });
+        document.getElementById('btn-card-detalhe-voltar').addEventListener('touchend', e => {
+          e.preventDefault();
+          fecharCardDetalhe(profileId, currentTemaId);
+        }, { passive: false });
+        document.getElementById('btn-card-detalhe-excluir').addEventListener('click', () => {
+          if (currentCardId) pedirExcluirCard(profileId, currentCardId);
+        });
+        document.getElementById('btn-card-detalhe-excluir').addEventListener('touchend', e => {
+          e.preventDefault();
+          if (currentCardId) pedirExcluirCard(profileId, currentCardId);
+        }, { passive: false });
+        bindViewerImg(document.getElementById('card-det-img-front'));
+        bindViewerImg(document.getElementById('card-det-img-back'));
       })
       .catch(() => {
         const estadoEl = document.getElementById('estado-text');

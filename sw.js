@@ -3,7 +3,7 @@
 // Estratégia: cache-first apenas para ícones.
 // HTML e módulos JS sempre buscados da rede — desenvolvimento ativo.
 
-const CACHE_NAME = 'vrvs-shell-v3-pacote-7e1-20260526';
+const CACHE_NAME = 'vrvs-shell-v3-pacote-7e11ab-20260527';
 
 const STATIC_ASSETS = [
   '/vrvs-nova/public/icons/icon-180.png',

@@ -379,32 +379,17 @@
       cursor: pointer;
     }
 
-    /* ── Detalhe read-only do Card — 7E.1 ── */
-    .card-det-text {
-      font-size: 15px;
-      color: var(--text-1);
+    /* ── Gaveta inline — 7E.1.1ab ── */
+    .card-gaveta-sep {
+      border-top: 1px solid var(--border);
+      margin: 10px 0 8px;
+    }
+    .card-gaveta-back {
+      font-size: 14px;
+      color: var(--text-2);
       white-space: pre-wrap;
       line-height: 1.55;
-      padding-top: 4px;
-    }
-    .card-det-img {
-      width: 100%;
-      border-radius: 8px;
-      margin-top: 10px;
-      display: block;
-      cursor: pointer;
-      touch-action: manipulation;
-    }
-    .card-det-excluir {
-      background: none;
-      border: none;
-      color: var(--text-3);
-      font-size: 13px;
-      font-family: inherit;
-      padding: 8px 0;
-      cursor: pointer;
-      touch-action: manipulation;
-      min-height: 40px;
+      padding-bottom: 4px;
     }
     .input-textarea {
       resize: none;
@@ -1068,28 +1053,6 @@
           <p class="btn-msg" id="card-form-msg" aria-live="polite"></p>
         </div>
 
-        <!-- Detalhe read-only do Card — 7E.1 -->
-        <div id="card-detalhe-wrap" hidden>
-          <div class="block">
-            <button class="btn-voltar" id="btn-card-detalhe-voltar" type="button"
-                    touch-action="manipulation">← Cards</button>
-          </div>
-          <div class="block">
-            <p class="block-label">Frente</p>
-            <p class="card-det-text" id="card-det-front"></p>
-            <img class="card-det-img" id="card-det-img-front" alt="Imagem da frente" hidden>
-          </div>
-          <div class="block">
-            <p class="block-label">Verso</p>
-            <p class="card-det-text" id="card-det-back"></p>
-            <img class="card-det-img" id="card-det-img-back" alt="Imagem do verso" hidden>
-          </div>
-          <div class="block">
-            <button class="card-det-excluir" id="btn-card-detalhe-excluir" type="button"
-                    touch-action="manipulation">Excluir card</button>
-          </div>
-        </div>
-
       </div>
 
       <div class="block">
@@ -1381,8 +1344,7 @@
     let _viewerActiveUrl  = null;
     let _pendingDelete    = null; // { profileId, cardId }
 
-    let currentCardId    = null; // card aberto no detalhe read-only — 7E.1
-    let _cardDetalheUrls = [];   // object URLs do detalhe — revogadas ao fechar
+    let _openCardId = null; // card com gaveta aberta — 7E.1.1ab
 
     // Estado da sessão de revisão
     let filaRevisao   = [];
@@ -1623,17 +1585,7 @@
 
       try {
         await deleteCard(pending.profileId, pending.cardId);
-        // Se estávamos no detalhe, fechar antes de renderizar lista
-        if (currentCardId !== null) {
-          revogarUrls(_cardDetalheUrls);
-          _cardDetalheUrls = [];
-          currentCardId = null;
-          const fi = document.getElementById('card-det-img-front');
-          const bi = document.getElementById('card-det-img-back');
-          if (fi) { fi.hidden = true; fi.src = ''; }
-          if (bi) { bi.hidden = true; bi.src = ''; }
-          document.getElementById('card-detalhe-wrap').hidden = true;
-        }
+        _openCardId = null;
         await renderCards(pending.profileId, currentTemaId);
         await recalcularHoje(pending.profileId);
       } catch (_) {
@@ -1655,6 +1607,7 @@
 
       revogarUrls(_cardThumbUrls);
       _cardThumbUrls = [];
+      _openCardId    = null; // reset ao re-renderizar lista
 
       formWrap.hidden = true;
 
@@ -1673,9 +1626,11 @@
 
           for (const c of cards) {
             const li = document.createElement('li');
-            li.className = 'card-item';
+            li.className      = 'card-item';
+            li.dataset.cardId = c.cardId;
 
             const frontTrim = (c.front ?? '').trim();
+            const backTrim  = (c.back  ?? '').trim();
 
             const front = document.createElement('p');
             front.className   = 'card-item-front';
@@ -1685,6 +1640,21 @@
             const badge = document.createElement('span');
             badge.className   = 'card-item-badge';
             badge.textContent = 'Novo · revisão hoje';
+
+            // Gaveta inline — 7E.1.1ab
+            const gaveta = document.createElement('div');
+            gaveta.className = 'card-gaveta';
+            gaveta.hidden    = true;
+
+            if (backTrim) {
+              const sep  = document.createElement('div');
+              sep.className = 'card-gaveta-sep';
+              const back = document.createElement('p');
+              back.className   = 'card-gaveta-back';
+              back.textContent = backTrim;
+              gaveta.appendChild(sep);
+              gaveta.appendChild(back);
+            }
 
             const actions = document.createElement('div');
             actions.className = 'card-item-actions';
@@ -1707,14 +1677,35 @@
 
             li.appendChild(front);
             li.appendChild(badge);
+            li.appendChild(gaveta);
             li.appendChild(actions);
 
-            // Tap no item abre detalhe read-only (Excluir usa stopPropagation)
-            li.addEventListener('click', () => abrirCardDetalhe(profileId, c));
+            // Touch seguro X/Y — tap vs scroll — 7E.1.1ab
+            const hasBack = !!backTrim;
+            let tapX = 0, tapY = 0, touchFired = false;
+
+            li.addEventListener('touchstart', e => {
+              tapX       = e.touches[0].clientX;
+              tapY       = e.touches[0].clientY;
+              touchFired = false;
+            }, { passive: true });
+
             li.addEventListener('touchend', e => {
-              e.preventDefault();
-              abrirCardDetalhe(profileId, c);
-            }, { passive: false });
+              if (e.target.closest('.btn-card-excluir')) return;
+              if (!hasBack) return;
+              const dx = Math.abs(e.changedTouches[0].clientX - tapX);
+              const dy = Math.abs(e.changedTouches[0].clientY - tapY);
+              if (dx > 10 || dy > 10) return;
+              touchFired = true;
+              _toggleGaveta(c.cardId, gaveta, listEl);
+            }, { passive: true });
+
+            li.addEventListener('click', e => {
+              if (e.target.closest('.btn-card-excluir')) return;
+              if (!hasBack) return;
+              if (touchFired) { touchFired = false; return; }
+              _toggleGaveta(c.cardId, gaveta, listEl);
+            });
 
             listEl.appendChild(li);
 
@@ -1742,66 +1733,20 @@
       }
     }
 
-    // ── Detalhe read-only do Card — 7E.1 ──
+    // ── Gaveta inline — toggle — 7E.1.1ab ──
 
-    async function abrirCardDetalhe(profileId, card) {
-      revogarUrls(_cardDetalheUrls);
-      _cardDetalheUrls = [];
-      currentCardId = card.cardId;
-
-      document.getElementById('cards-list-wrap').hidden   = true;
-      document.getElementById('cards-empty-wrap').hidden  = true;
-      document.getElementById('cards-form-wrap').hidden   = true;
-      document.getElementById('card-detalhe-wrap').hidden = false;
-
-      const frontTextEl = document.getElementById('card-det-front');
-      const backTextEl  = document.getElementById('card-det-back');
-      const frontImgEl  = document.getElementById('card-det-img-front');
-      const backImgEl   = document.getElementById('card-det-img-back');
-
-      frontTextEl.textContent = (card.front ?? '').trim() || '(sem texto)';
-      backTextEl.textContent  = (card.back  ?? '').trim() || '(sem texto)';
-      frontImgEl.hidden = true;
-      frontImgEl.src    = '';
-      backImgEl.hidden  = true;
-      backImgEl.src     = '';
-
-      const snapId = card.cardId; // proteção contra stale async
-
-      getCardAssetBySide(profileId, card.cardId, 'front')
-        .then(asset => {
-          if (currentCardId !== snapId || !asset) return;
-          const url = URL.createObjectURL(asset.blob);
-          _cardDetalheUrls.push(url);
-          frontImgEl.src    = url;
-          frontImgEl.hidden = false;
-        })
-        .catch(() => {});
-
-      getCardAssetBySide(profileId, card.cardId, 'back')
-        .then(asset => {
-          if (currentCardId !== snapId || !asset) return;
-          const url = URL.createObjectURL(asset.blob);
-          _cardDetalheUrls.push(url);
-          backImgEl.src    = url;
-          backImgEl.hidden = false;
-        })
-        .catch(() => {});
+    function _toggleGaveta(cardId, gaveta, listEl) {
+      const isOpen = !gaveta.hidden;
+      if (_openCardId && _openCardId !== cardId) {
+        const prevLi = listEl.querySelector(`[data-card-id="${_openCardId}"]`);
+        if (prevLi) {
+          const pg = prevLi.querySelector('.card-gaveta');
+          if (pg) pg.hidden = true;
+        }
+      }
+      gaveta.hidden = isOpen;
+      _openCardId   = isOpen ? null : cardId;
     }
-
-    function fecharCardDetalhe(profileId, temaId) {
-      revogarUrls(_cardDetalheUrls);
-      _cardDetalheUrls = [];
-      currentCardId = null;
-      const fi = document.getElementById('card-det-img-front');
-      const bi = document.getElementById('card-det-img-back');
-      fi.hidden = true; fi.src = '';
-      bi.hidden = true; bi.src = '';
-      document.getElementById('card-detalhe-wrap').hidden = true;
-      renderCards(profileId, temaId);
-    }
-
-    // ── Fim detalhe read-only do Card ──
 
     async function abrirDetalhe(profileId, temaId) {
       const listWrap    = document.getElementById('temas-list-wrap');
@@ -2143,23 +2088,6 @@
         document.getElementById('input-img-back').addEventListener('change',
           () => handleImageInput('back'));
 
-        // Detalhe read-only do Card — 7E.1
-        document.getElementById('btn-card-detalhe-voltar').addEventListener('click', () => {
-          fecharCardDetalhe(profileId, currentTemaId);
-        });
-        document.getElementById('btn-card-detalhe-voltar').addEventListener('touchend', e => {
-          e.preventDefault();
-          fecharCardDetalhe(profileId, currentTemaId);
-        }, { passive: false });
-        document.getElementById('btn-card-detalhe-excluir').addEventListener('click', () => {
-          if (currentCardId) pedirExcluirCard(profileId, currentCardId);
-        });
-        document.getElementById('btn-card-detalhe-excluir').addEventListener('touchend', e => {
-          e.preventDefault();
-          if (currentCardId) pedirExcluirCard(profileId, currentCardId);
-        }, { passive: false });
-        bindViewerImg(document.getElementById('card-det-img-front'));
-        bindViewerImg(document.getElementById('card-det-img-back'));
       })
       .catch(() => {
         const estadoEl = document.getElementById('estado-text');
